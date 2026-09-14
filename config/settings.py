@@ -13,10 +13,13 @@ ENABLED_TOOLS: list[str] = [
 
 #Model constants
 CHAT_MODEL_NAME=os.getenv("CHAT_MODEL_NAME")
+OPENROUTER_CHAT_MODEL_NAME="openrouter/free"
 OPENROUTER_API_KEY=os.getenv("OPENROUTER_API_KEY")
-EMBEDDING_MODEL_NAME=os.getenv("EMBEDDING_MODEL_NAME")
+LOCAL_MODEL_NAME=os.getenv("LOCAL_MODEL_NAME")
+LOCAL_EMBEDDING_MODEL_NAME=os.getenv("LOCAL_EMBEDDING_MODEL_NAME")
 MODEL_BASE_URL = "https://openrouter.ai/api/v1"
 MODEL_PROVIDER = "openai"
+LOCAL_MODEL_BASE_URL = "http://localhost:1234/v1"
 
 # directory that file system tool has access to (dedicated agent sandbox)
 PROJECT_ROOT = Path.home() / "agent_project"

@@ -4,7 +4,7 @@ from functools import lru_cache
 from langchain_text_splitters import TokenTextSplitter
 from langchain_core.documents import Document
 from langchain_core.tools import tool
-from config.settings import CHROMA_PERSIST_DIR, EMBEDDING_MODEL_NAME, EMBEDDING_MODEL_CONTEXT, EMBEDDING_MODEL_CHUNK
+from config.settings import CHROMA_PERSIST_DIR, LOCAL_EMBEDDING_MODEL_NAME, EMBEDDING_MODEL_CONTEXT, EMBEDDING_MODEL_CHUNK
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 
@@ -12,7 +12,7 @@ from langchain_openai import OpenAIEmbeddings
 @lru_cache(maxsize=1)
 def _get_embeddings():
     return OpenAIEmbeddings(
-        model=EMBEDDING_MODEL_NAME,
+        model=LOCAL_EMBEDDING_MODEL_NAME,
         openai_api_base="http://localhost:1234/v1",
         openai_api_key="lm-studio",
         check_embedding_ctx_length=False,
