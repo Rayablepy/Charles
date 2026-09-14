@@ -8,7 +8,7 @@ ENABLED_TOOLS: list[str] = [
     "rag",
     "todo/notes",
     # "calendar",
-    # "web",
+    "web",
 ]
 
 #Model constants
