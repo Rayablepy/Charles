@@ -1,6 +1,6 @@
 # Charles
 
-A personal AI assistant built on LangChain Deep Agents and LangGraph, running completely free of charge by using the free OpenRouter API and LM studio.
+A personal AI assistant built on LangChain Deep Agents and LangGraph, running completely free of charge by using models served by the free OpenRouter API and LM studio.
 
 The goal: an assistant with real memory, real tools, and real access to your own files and data, all to streamline workflows and improve productivity
 as an all-in-one agent
@@ -26,11 +26,10 @@ as an all-in-one agent
 - [x] Conversational memory across sessions (LangGraph checkpointer)
 - [x] Scoped filesystem access tool
 - [x] Notes / todo tool with local persistence
+- [x] MCP server served by Browser OS allowing full web access free of charge
 ### In progress / planned
-- [ ] Web search tool
 - [ ] Desktop app and UI using React and Electron
 - [ ] Calendar and email integration (read-only first)
-- [ ] MCP server support for third-party apps
 - [ ] Human-in-the-loop approval for sensitive actions (sending messages, deleting files, running shell commands)
 - [ ] Voice input/output
 
@@ -39,7 +38,7 @@ as an all-in-one agent
 ## Architecture
 
 ```                                                
-User ──▶ UI ──▶ Agent Core (deepagents) ──▶ Tools ──▶ Local data
+User ──▶ UI ──▶ Agent Core (deepagents) ──▶ Tools ──▶ Local and external data
                                           │       
                                           ▼
                                    OpenRouter API
@@ -56,6 +55,7 @@ localAgent/
 ├── tools/
 │   ├── rag.py
 │   ├── todo.py
+|   ├── web.py
 │   └── tools.py
 ├── memory/
 │   ├── vectorstore.py     # embedding + indexing
@@ -77,6 +77,7 @@ localAgent/
 | Model serving | OpenRouter/LM studio |
 | Vector store | Chroma |
 | Persistence | SQLite |
+| MCP connections | Browser OS |
 
 ## Getting Started
 
@@ -87,7 +88,8 @@ pip install -r requirements.txt
 cp .env.example .env   
 ```
 
-Requires [LM Studio](https://lmstudio.ai/) (or another OpenAI-compatible local server) running at `http://localhost:1234/v1` with JIT loading enabled and an OpenRouter API key.
+Requires [LM Studio](https://lmstudio.ai/) (or another OpenAI-compatible local server) running at `http://localhost:1234/v1` with JIT loading enabled and an OpenRouter API key. 
+For browser OS use, Browser OS must be installed with the MCP server running locally on port 9010(can be changed in settings.py).
 
 ```bash
 python -m execution.py cli

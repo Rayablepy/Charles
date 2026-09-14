@@ -8,9 +8,11 @@ ENABLED_TOOLS: list[str] = [
     "rag",
     "todo/notes",
     # "calendar",
-    # "web",
+    "web",
 ]
 
+#Model constants
+CHAT_MODEL_NAME=os.getenv("CHAT_MODEL_NAME")
 OPENROUTER_CHAT_MODEL_NAME="openrouter/free"
 OPENROUTER_API_KEY=os.getenv("OPENROUTER_API_KEY")
 LOCAL_MODEL_NAME=os.getenv("LOCAL_MODEL_NAME")
@@ -50,3 +52,6 @@ RAG_TOP_K = 4
 
 WEB_SEARCH_MAX_RESULTS = 5
 WEB_FETCH_TIMEOUT_SECONDS = 15
+
+#MCP urls
+BROWSER_OS_URL="http://127.0.0.1:9010/mcp"
