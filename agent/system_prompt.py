@@ -50,6 +50,11 @@ else:
     offline). If a request needs the browser, tell the user it's
     unavailable and offer an alternative rather than pretending to search.
      """
+SUBAGENT_NOTES={
+    "basic_web": """When the task involves reading emails,calendar events, spreadsheets,
+                or any other tasks that do NOT require significant compute/long workflows, 
+                delegate to this subagent rather than attempting it directly."""
+}
 BACKEND_MIDDLEWARE_NOTES="""
 Backend layout:
 - `/longtermmemories/` is a persistent, cross-session store (SQLite). `/longtermmemories/AGENTS.md` holds the user's
@@ -62,11 +67,11 @@ Backend layout:
   full read/write/delete access inside it, and you cannot access files outside it.
 """
 
-def build_system_prompt(enabled_tools: list[str]) -> str:
+def build_system_prompt(enabled_tools: list[str], enabled_subagents: list[str]) -> str:
     #composes system prompt based on enabled_tools that match tool notes
     sections = [BASE_IDENTITY, OPERATING_PRINCIPLES, TONE, BACKEND_MIDDLEWARE_NOTES]
 
-    active_notes = [TOOL_NOTES[t] for t in enabled_tools if t in TOOL_NOTES]
+    active_notes = [TOOL_NOTES[t] for t in enabled_tools if t in TOOL_NOTES + SUBAGENT_NOTES[t] for t in enabled_subagents if t in SUBAGENT_NOTES]
     if active_notes:
         sections.append("Currently available tools:\n" + "\n".join(f"- {n}" for n in active_notes))
     else:

@@ -1,6 +1,9 @@
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+
+from langchain.chat_models import init_chat_model
+
 load_dotenv()
 
 #tool list that agent will have access to, update when tools are added or removed
@@ -9,6 +12,10 @@ ENABLED_TOOLS: list[str] = [
     "todo/notes",
     # "calendar",
     "web",
+    "web_basic",
+]
+ENABLED_SUBAGENTS: list[str] = [
+    "basic_web"
 ]
 
 #Model constants
@@ -21,6 +28,12 @@ MODEL_BASE_URL = "https://openrouter.ai/api/v1"
 MODEL_PROVIDER = "openai"
 LOCAL_MODEL_BASE_URL = "http://localhost:1234/v1"
 
+LOCAL_MODEL= init_chat_model(
+    model=LOCAL_MODEL_NAME,
+    model_provider=MODEL_PROVIDER,
+    base_url=LOCAL_MODEL_BASE_URL,
+    api_key=OPENROUTER_API_KEY, #this can be anything but i am just using the existing api key var
+)
 # directory that file system tool has access to (dedicated agent sandbox)
 PROJECT_ROOT = Path.home() / "agent_project"
 
