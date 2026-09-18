@@ -1,11 +1,9 @@
-import asyncio
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_openrouter import ChatOpenRouter
 from tools.tools import tool_list
-from config.settings import ENABLED_TOOLS, PROJECT_ROOT, MODEL_BASE_URL, ENABLED_SUBAGENTS
+from config.settings import ENABLED_TOOLS, PROJECT_ROOT, MAIN_MODEL, ENABLED_SUBAGENTS
 from agent.system_prompt import build_system_prompt
-from config.settings import OPENROUTER_CHAT_MODEL_NAME, DB_PATH, OPENROUTER_API_KEY
+from config.settings import  DB_PATH
 from tools.web import basic_web_agent
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend,CompositeBackend,StateBackend, StoreBackend
@@ -14,13 +12,6 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 DB_PATH.parent.mkdir(parents=True,exist_ok=True)
 PROJECT_ROOT.mkdir(parents=True,exist_ok=True)
-
-model = ChatOpenRouter(
-    model=OPENROUTER_CHAT_MODEL_NAME,
-    base_url=MODEL_BASE_URL,
-    api_key=OPENROUTER_API_KEY,
-    openrouter_provider={"max_price": {"prompt": 0, "completion": 0}},
-)
 
 checkpointer=None
 checkpointer_context_manager=None
@@ -51,7 +42,7 @@ async def build_agent():
             }
         )
     agent = create_deep_agent(
-        model=model,
+        model=MAIN_MODEL,
         system_prompt=build_system_prompt(ENABLED_TOOLS,ENABLED_SUBAGENTS),
         memory=["/longtermmemories/AGENTS.md"],
         tools=tool_list,

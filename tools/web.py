@@ -7,7 +7,7 @@ import asyncio
 
 from deepagents import SubAgent
 from langchain.mcp import MCPAdapter
-from config.settings import BROWSER_OS_URL, LOCAL_MODEL
+from config.settings import BROWSER_OS_URL, LOCAL_MODEL, MAIN_MODEL
 
 WEB_TOOLS_STATUS=None
 async def get_web_tools()->list:
@@ -21,9 +21,9 @@ async def get_web_tools()->list:
         return []
 
 basic_web_agent=SubAgent(
-    model=LOCAL_MODEL,
+    model=LOCAL_MODEL if LOCAL_MODEL else MAIN_MODEL,
     name="basic_web_agent",
-    description="Handles basic, short web workflows that do NOT require complex logic and/or reasoning.",
+    description="Handles basic, short web workflows that do NOT require complex logic and/or reasoning. As such, ensure instructions are clear and precise.",
     tools=asyncio.run(get_web_tools()),
-    system_prompt="You are a basic agent meant only for automating short, simple web tasks explicitly as instructed."
+    system_prompt="You are a basic agent meant only for automating short, simple web tasks explicitly as instructed. Return the results of your work."
 )

@@ -71,7 +71,7 @@ def build_system_prompt(enabled_tools: list[str], enabled_subagents: list[str]) 
     #composes system prompt based on enabled_tools that match tool notes
     sections = [BASE_IDENTITY, OPERATING_PRINCIPLES, TONE, BACKEND_MIDDLEWARE_NOTES]
 
-    active_notes = [TOOL_NOTES[t] for t in enabled_tools if t in TOOL_NOTES + SUBAGENT_NOTES[t] for t in enabled_subagents if t in SUBAGENT_NOTES]
+    active_notes = [TOOL_NOTES[t] for t in enabled_tools if t in TOOL_NOTES]+[SUBAGENT_NOTES[t] for t in enabled_subagents if t in SUBAGENT_NOTES]
     if active_notes:
         sections.append("Currently available tools:\n" + "\n".join(f"- {n}" for n in active_notes))
     else:

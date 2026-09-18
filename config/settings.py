@@ -3,6 +3,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 
 from langchain.chat_models import init_chat_model
+from langchain_openrouter import ChatOpenRouter
 
 load_dotenv()
 
@@ -28,12 +29,21 @@ MODEL_BASE_URL = "https://openrouter.ai/api/v1"
 MODEL_PROVIDER = "openai"
 LOCAL_MODEL_BASE_URL = "http://localhost:1234/v1"
 
+
 LOCAL_MODEL= init_chat_model(
     model=LOCAL_MODEL_NAME,
     model_provider=MODEL_PROVIDER,
     base_url=LOCAL_MODEL_BASE_URL,
     api_key=OPENROUTER_API_KEY, #this can be anything but i am just using the existing api key var
 )
+
+MAIN_MODEL = ChatOpenRouter(
+    model=OPENROUTER_CHAT_MODEL_NAME,
+    base_url=MODEL_BASE_URL,
+    api_key=OPENROUTER_API_KEY,
+    openrouter_provider={"max_price": {"prompt": 0, "completion": 0}},
+)
+
 # directory that file system tool has access to (dedicated agent sandbox)
 PROJECT_ROOT = Path.home() / "agent_project"
 
