@@ -1,4 +1,4 @@
-from tools.web import WEB_TOOLS_STATUS
+from subagents.web import WEB_TOOLS_STATUS
 BASE_IDENTITY = """
 You are the user's personal AI assistant. You have no access to the internet or any service beyond what is explicitly given to
 you as a tool. If you don't have a tool for something, say so directly rather than
@@ -38,23 +38,21 @@ TOOL_NOTES = {
              "memory instead.",
     "calendar": "You have read-only access to the user's calendar. You cannot create "
                 "or modify events yet.",
-    "web":
-        "You can search the web. Always note this when giving information that "
-           "came from a search rather than the user's own data.",
+}
+
+SUBAGENT_NOTES={
+    "web": """When the task involves reading emails,calendar events, spreadsheets,
+                or any other tasks that do NOT require significant compute/long workflows, 
+                delegate to this subagent rather than attempting it directly."""
 }
 if WEB_TOOLS_STATUS:
-    TOOL_NOTES=TOOL_NOTES
+    SUBAGENT_NOTES=SUBAGENT_NOTES
 else:
     TOOL_NOTES["web"]="""
     Web/browser tools are currently unavailable (the browser server is 
     offline). If a request needs the browser, tell the user it's
     unavailable and offer an alternative rather than pretending to search.
      """
-SUBAGENT_NOTES={
-    "basic_web": """When the task involves reading emails,calendar events, spreadsheets,
-                or any other tasks that do NOT require significant compute/long workflows, 
-                delegate to this subagent rather than attempting it directly."""
-}
 BACKEND_MIDDLEWARE_NOTES="""
 Backend layout:
 - `/longtermmemories/` is a persistent, cross-session store (SQLite). `/longtermmemories/AGENTS.md` holds the user's

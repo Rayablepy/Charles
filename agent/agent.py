@@ -4,7 +4,7 @@ from tools.tools import tool_list
 from config.settings import ENABLED_TOOLS, PROJECT_ROOT, MAIN_MODEL, ENABLED_SUBAGENTS
 from agent.system_prompt import build_system_prompt
 from config.settings import  DB_PATH
-from tools.web import basic_web_agent
+from subagents.web import web_agent
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend,CompositeBackend,StateBackend, StoreBackend
 from langgraph.store.sqlite.aio import AsyncSqliteStore
@@ -49,7 +49,7 @@ async def build_agent():
         backend=backend,
         store=store,
         checkpointer=checkpointer,
-        subagents=[basic_web_agent],
+        subagents=[web_agent],
     )
 
     return agent

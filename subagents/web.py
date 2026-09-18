@@ -20,10 +20,10 @@ async def get_web_tools()->list:
         WEB_TOOLS_STATUS=False
         return []
 
-basic_web_agent=SubAgent(
-    model=LOCAL_MODEL if LOCAL_MODEL else MAIN_MODEL,
+web_agent=SubAgent(
+    model=LOCAL_MODEL if LOCAL_MODEL is not None else MAIN_MODEL,
     name="basic_web_agent",
-    description="Handles basic, short web workflows that do NOT require complex logic and/or reasoning. As such, ensure instructions are clear and precise.",
+    description="Handles any web related tasks the user requires. Ensure instructions are clear and precise. Returns results of its work.",
     tools=asyncio.run(get_web_tools()),
-    system_prompt="You are a basic agent meant only for automating short, simple web tasks explicitly as instructed. Return the results of your work."
+    system_prompt="You are a basic agent meant only to execute tasks on the web explicitly as instructed.Return the results of your work."
 )
