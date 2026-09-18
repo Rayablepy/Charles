@@ -41,14 +41,14 @@ TOOL_NOTES = {
 }
 
 SUBAGENT_NOTES={
-    "web": """When the task involves reading emails,calendar events, spreadsheets,
+    "web_agent": """When the task involves reading emails,calendar events, spreadsheets,
                 or any other tasks that do NOT require significant compute/long workflows, 
                 delegate to this subagent rather than attempting it directly."""
 }
 if WEB_TOOLS_STATUS:
     SUBAGENT_NOTES=SUBAGENT_NOTES
 else:
-    TOOL_NOTES["web"]="""
+    SUBAGENT_NOTES["web_agent"]="""
     Web/browser tools are currently unavailable (the browser server is 
     offline). If a request needs the browser, tell the user it's
     unavailable and offer an alternative rather than pretending to search.

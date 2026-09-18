@@ -14,7 +14,7 @@ ENABLED_TOOLS: list[str] = [
     "calendar",
 ]
 ENABLED_SUBAGENTS: list[str] = [
-    "basic_web"
+    "web_agent"
 ]
 
 #Model constants
