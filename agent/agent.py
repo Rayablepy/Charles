@@ -49,7 +49,7 @@ async def build_agent():
         backend=backend,
         store=store,
         checkpointer=checkpointer,
-        subagents=[web_agent],
+        subagents=[web_agent] if web_agent is not None else None,
     )
 
     return agent
@@ -144,7 +144,7 @@ async def response(message: str, thread_id:str):
     state = await agent.ainvoke({"messages": [{"role": "user", "content": message}]},config=config)
     if not extract_answer(state):
         followup = {"role": "user", "content": EMPTY_RESPONSE_FOLLOWUP}
-        state = await agent.ainvoke({"messages": [*state.get("messages", []), followup]})
+        state = await agent.ainvoke({"messages": [*state.get("messages", []), followup]},config=config)
     final = extract_answer(state) or FALLBACK_RESPONSE
     last = state.get("messages", [])[-1]
     if isinstance(last, AIMessage):
