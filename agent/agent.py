@@ -1,13 +1,10 @@
-import asyncio
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-from langchain_openrouter import ChatOpenRouter
 from tools.tools import tool_list
-from config.settings import ENABLED_TOOLS, PROJECT_ROOT, MODEL_BASE_URL, MODEL_PROVIDER, LOCAL_MODEL_NAME, \
-    LOCAL_MODEL_BASE_URL
+from config.settings import ENABLED_TOOLS, PROJECT_ROOT, MAIN_MODEL, ENABLED_SUBAGENTS
 from agent.system_prompt import build_system_prompt
-from config.settings import OPENROUTER_CHAT_MODEL_NAME, DB_PATH, OPENROUTER_API_KEY
-from langchain.chat_models import init_chat_model
+from config.settings import  DB_PATH
+from subagents.web import web_agent
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend,CompositeBackend,StateBackend, StoreBackend
 from langgraph.store.sqlite.aio import AsyncSqliteStore
@@ -16,21 +13,6 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 DB_PATH.parent.mkdir(parents=True,exist_ok=True)
 PROJECT_ROOT.mkdir(parents=True,exist_ok=True)
 
-model = ChatOpenRouter(
-    model=OPENROUTER_CHAT_MODEL_NAME,
-    base_url=MODEL_BASE_URL,
-    api_key=OPENROUTER_API_KEY,
-    openrouter_provider={"max_price": {"prompt": 0, "completion": 0}},
-)
-#general purpose light model for small scale tasks
-'''
-local_model= init_chat_model(
-    model=LOCAL_MODEL_NAME,
-    model_provider=MODEL_PROVIDER,
-    base_url=LOCAL_MODEL_BASE_URL,
-    api_key=OPENROUTER_API_KEY, #this can be anything but i am just using the existing api key var
-)
-'''
 checkpointer=None
 checkpointer_context_manager=None
 store = None
@@ -60,13 +42,14 @@ async def build_agent():
             }
         )
     agent = create_deep_agent(
-        model=model,
-        system_prompt=build_system_prompt(ENABLED_TOOLS),
+        model=MAIN_MODEL,
+        system_prompt=build_system_prompt(ENABLED_TOOLS,ENABLED_SUBAGENTS),
         memory=["/longtermmemories/AGENTS.md"],
         tools=tool_list,
         backend=backend,
         store=store,
         checkpointer=checkpointer,
+        subagents=[web_agent] if web_agent is not None else None,
     )
 
     return agent
@@ -161,7 +144,7 @@ async def response(message: str, thread_id:str):
     state = await agent.ainvoke({"messages": [{"role": "user", "content": message}]},config=config)
     if not extract_answer(state):
         followup = {"role": "user", "content": EMPTY_RESPONSE_FOLLOWUP}
-        state = await agent.ainvoke({"messages": [*state.get("messages", []), followup]})
+        state = await agent.ainvoke({"messages": [*state.get("messages", []), followup]},config=config)
     final = extract_answer(state) or FALLBACK_RESPONSE
     last = state.get("messages", [])[-1]
     if isinstance(last, AIMessage):

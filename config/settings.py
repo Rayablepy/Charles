@@ -1,14 +1,20 @@
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+
+from langchain.chat_models import init_chat_model
+from langchain_openrouter import ChatOpenRouter
+
 load_dotenv()
 
 #tool list that agent will have access to, update when tools are added or removed
 ENABLED_TOOLS: list[str] = [
     "rag",
     "todo/notes",
-    # "calendar",
-    "web",
+    "calendar",
+]
+ENABLED_SUBAGENTS: list[str] = [
+    "web_agent"
 ]
 
 #Model constants
@@ -21,15 +27,32 @@ MODEL_BASE_URL = "https://openrouter.ai/api/v1"
 MODEL_PROVIDER = "openai"
 LOCAL_MODEL_BASE_URL = "http://localhost:1234/v1"
 
+if LOCAL_MODEL_NAME:
+    LOCAL_MODEL= init_chat_model(
+        model=LOCAL_MODEL_NAME,
+        model_provider=MODEL_PROVIDER,
+        base_url=LOCAL_MODEL_BASE_URL,
+        api_key=OPENROUTER_API_KEY, #this can be anything but i am just using the existing api key var
+    )
+else:
+    LOCAL_MODEL= None
+
+MAIN_MODEL = ChatOpenRouter(
+    model=OPENROUTER_CHAT_MODEL_NAME,
+    base_url=MODEL_BASE_URL,
+    api_key=OPENROUTER_API_KEY,
+    openrouter_provider={"max_price": {"prompt": 0, "completion": 0}},
+)
+
 # directory that file system tool has access to (dedicated agent sandbox)
-PROJECT_ROOT = Path.home() / "agent_project"
+PROJECT_ROOT = Path.home() / ".Charles"
 
 #(not yet fully implemented) read-only directories the agent can look into but never write to
 READONLY_PATHS: list[Path] = [
     Path.home() / "Documents",
 ]
 
-#high risk tools that require approval
+#(not yet fully implemented) high risk tools that require approval
 REQUIRE_APPROVAL: set[str] = {
     "send_email",
     "delete_file",
