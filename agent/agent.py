@@ -1,3 +1,4 @@
+import asyncio
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from tools.tools import tool_list
@@ -53,6 +54,8 @@ async def build_agent():
     )
 
     return agent
+
+stack_agent=asyncio.run(build_agent())
 
 #parser for potential empty responses
 EMPTY_RESPONSE_FOLLOWUP = (
@@ -137,7 +140,7 @@ async def thread_renamer(state,thread_id):
             )
         except Exception:
             pass
-#main response method
+#cli response method
 async def response(message: str, thread_id:str):
     agent = await build_agent()
     config={"configurable": {"thread_id":thread_id}}
