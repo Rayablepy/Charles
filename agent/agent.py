@@ -2,60 +2,77 @@ import asyncio
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from tools.tools import tool_list
-from config.settings import ENABLED_TOOLS, PROJECT_ROOT, MAIN_MODEL, ENABLED_SUBAGENTS
+from config.settings import DB_PATH, ENABLED_TOOLS, PROJECT_ROOT, MAIN_MODEL, ENABLED_SUBAGENTS
 from agent.system_prompt import build_system_prompt
-from config.settings import  DB_PATH
 from subagents.web import web_agent
 from deepagents import create_deep_agent
-from deepagents.backends import FilesystemBackend,CompositeBackend,StateBackend, StoreBackend
+from deepagents.backends import FilesystemBackend, CompositeBackend, StateBackend, StoreBackend
 from langgraph.store.sqlite.aio import AsyncSqliteStore
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
-DB_PATH.parent.mkdir(parents=True,exist_ok=True)
-PROJECT_ROOT.mkdir(parents=True,exist_ok=True)
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+PROJECT_ROOT.mkdir(parents=True, exist_ok=True)
 
-checkpointer=None
-checkpointer_context_manager=None
-store = None
-store_context_manager = None
-backend=None
-agent=None
 
-async def build_agent():
-    global checkpointer
-    global checkpointer_context_manager
-    global store
-    global store_context_manager
-    global backend
-    global agent
-    if agent:
-        return agent
-    checkpointer_context_manager = AsyncSqliteSaver.from_conn_string(DB_PATH)
-    checkpointer=await checkpointer_context_manager.__aenter__()
-    store_context_manager = AsyncSqliteStore.from_conn_string(DB_PATH)
-    store = await store_context_manager.__aenter__()
-    await store.setup()
-    backend=CompositeBackend(
-            default=StateBackend(),
-            routes={
-                "/longtermmemories/": StoreBackend(store=store,namespace=lambda _: ("localAgent","longterm")),
-                "/project/": FilesystemBackend(root_dir=PROJECT_ROOT,virtual_mode=True)
-            }
-        )
-    agent = create_deep_agent(
+class DeepAgent:
+    def __init__(self) -> None:
+        self.build_lock: asyncio.Lock | None = None
+        self.checkpointer_cm = None
+        self.store_cm = None
+        self.checkpointer = None
+        self.store = None
+        self.agent = None
+
+    async def build(self):
+        if self.agent is not None:
+            return self.agent
+        if self.build_lock is None:
+            self.build_lock = asyncio.Lock()
+        async with self.build_lock:
+            if self.agent is not None:
+                return self.agent
+            self.checkpointer_cm = AsyncSqliteSaver.from_conn_string(DB_PATH)
+            self.checkpointer = await self.checkpointer_cm.__aenter__()
+            self.store_cm = AsyncSqliteStore.from_conn_string(DB_PATH)
+            self.store = await self.store_cm.__aenter__()
+            await self.store.setup()
+            self.agent = await asyncio.to_thread(
+                construct_agent,
+                tool_list,
+                self.store,
+                self.checkpointer,
+            )
+        return self.agent
+
+def construct_agent(tools, store, checkpointer):
+    backend = CompositeBackend(
+        default=StateBackend(),
+        routes={
+            "/longtermmemories/": StoreBackend(
+                store=store,
+                namespace=lambda op: ("localAgent", "longterm"),
+            ),
+            "/project/": FilesystemBackend(root_dir=PROJECT_ROOT, virtual_mode=True),
+        },
+    )
+    return create_deep_agent(
         model=MAIN_MODEL,
-        system_prompt=build_system_prompt(ENABLED_TOOLS,ENABLED_SUBAGENTS),
+        system_prompt=build_system_prompt(ENABLED_TOOLS, ENABLED_SUBAGENTS),
         memory=["/longtermmemories/AGENTS.md"],
-        tools=tool_list,
+        tools=tools,
         backend=backend,
         store=store,
         checkpointer=checkpointer,
         subagents=[web_agent] if web_agent is not None else None,
     )
 
-    return agent
+deep_agent = DeepAgent()
+#variable required for langgraph server
+stack_agent = deep_agent.build
 
-stack_agent=asyncio.run(build_agent())
+#Function for local cli usage
+async def build_agent():
+    return await deep_agent.build()
 
 #parser for potential empty responses
 EMPTY_RESPONSE_FOLLOWUP = (
@@ -117,11 +134,11 @@ def extract_answer(state):
 async def list_threads(limit: int = 50)->dict:
     await build_agent()
     threads = {}
-    async for checkpoint in checkpointer.alist(None,limit=limit):
+    async for checkpoint in deep_agent.checkpointer.alist(None,limit=limit):
         thread_id=checkpoint.config["configurable"]["thread_id"]
         if thread_id in threads:
             continue
-        thread_item = await store.aget(("localAgent", "thread_names"), thread_id)
+        thread_item = await deep_agent.store.aget(("localAgent", "thread_names"), thread_id)
         thread_name = thread_item.value["name"] if thread_item else None
         if not thread_name:
             thread_name="Untitled Chat"
@@ -133,7 +150,7 @@ async def thread_renamer(state,thread_id):
     if len(messages) == 2:
         try:
             thread_name=thread_id[:8]
-            await store.aput(
+            await deep_agent.store.aput(
                 ("localAgent", "thread_names"),
                 thread_id,
                 {"name": thread_name},

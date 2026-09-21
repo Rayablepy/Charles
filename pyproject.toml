@@ -22,4 +22,5 @@ dependencies = [
     "textract>=2.0.0",
     "torch>=2.13.0",
     "transformers>=5.14.1",
+    "langgraph-cli[inmem]>=0.4.31",
 ]
