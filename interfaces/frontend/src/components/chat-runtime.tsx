@@ -10,6 +10,7 @@ import {
 } from "@assistant-ui/react-langgraph";
 import { LANGGRAPH_ASSISTANT_ID, langgraphClient } from "@/lib/langgraph";
 import { createLangGraphThreadListAdapter } from "@/lib/langgraph-thread-list";
+import { RagUploadAttachmentAdapter } from "@/lib/langgraph-attachments";
 
 export function ChatRuntimeProvider({
   children,
@@ -34,12 +35,18 @@ export function ChatRuntimeProvider({
     [],
   );
 
+  const attachmentsAdapter = useMemo(
+    () => new RagUploadAttachmentAdapter(),
+    [],
+  );
+
   const runtime = useLangGraphRuntime({
     unstable_allowCancellation: true,
     unstable_threadListAdapter: threadListAdapter,
     threadId,
     onThreadIdChange,
     stream,
+    adapters: { attachments: attachmentsAdapter },
     load: async (externalId) => {
       try {
         const state = await langgraphClient.threads.getState(externalId);
