@@ -9,6 +9,7 @@ import {
   type LangChainMessage,
 } from "@assistant-ui/react-langgraph";
 import { LANGGRAPH_ASSISTANT_ID, langgraphClient } from "@/lib/langgraph";
+import { createLangGraphThreadListAdapter } from "@/lib/langgraph-thread-list";
 
 export function ChatRuntimeProvider({
   children,
@@ -28,15 +29,17 @@ export function ChatRuntimeProvider({
     [],
   );
 
+  const threadListAdapter = useMemo(
+    () => createLangGraphThreadListAdapter(langgraphClient),
+    [],
+  );
+
   const runtime = useLangGraphRuntime({
     unstable_allowCancellation: true,
+    unstable_threadListAdapter: threadListAdapter,
     threadId,
     onThreadIdChange,
     stream,
-    create: async () => {
-      const thread = await langgraphClient.threads.create();
-      return { externalId: thread.thread_id };
-    },
     load: async (externalId) => {
       try {
         const state = await langgraphClient.threads.getState(externalId);

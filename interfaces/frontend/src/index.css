@@ -201,10 +201,6 @@
     font-variation-settings: 'wght' 900, 'ROND' 100;
   }
 
-  .app-subtitle {
-    @apply text-sm text-muted-foreground;
-  }
-
   .app-thread {
     @apply min-h-0 flex-1;
   }
@@ -218,9 +214,5 @@
   .app-welcome-title {
     @apply mt-3 font-heading text-4xl font-extrabold text-foreground;
     font-variation-settings: 'wght' 900, 'ROND' 100;
-  }
-
-  .app-welcome-subtitle {
-    @apply mt-3 max-w-md text-muted-foreground;
   }
 }

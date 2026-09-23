@@ -28,7 +28,6 @@ export default function ChatPage() {
         <main className="app-main">
           <header className="app-header">
             <h1 className="app-title">Charles</h1>
-            <p className="app-subtitle">Local LangGraph agent · chat interface</p>
           </header>
           <div className="app-thread">
             <Thread
