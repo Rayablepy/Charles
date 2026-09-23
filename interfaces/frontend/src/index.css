@@ -165,7 +165,16 @@
   }
 
   .app-sidebar-header {
-    @apply shrink-0 border-b p-3;
+    @apply flex shrink-0 items-center justify-between border-b p-3;
+  }
+
+  .app-sidebar-title {
+    @apply font-heading text-xl font-extrabold;
+    font-variation-settings: 'wght' 900, 'ROND' 100;
+  }
+
+  .app-theme-toggle {
+    @apply flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground;
   }
 
   .app-new-chat {
@@ -173,11 +182,19 @@
   }
 
   .app-chat-list {
-    @apply min-h-0 flex-1 overflow-y-auto p-2;
+    @apply flex min-h-0 flex-1 flex-col gap-2 p-2;
+  }
+
+  .app-chat-scroll {
+    @apply min-h-0 flex-1 overflow-y-auto;
+  }
+
+  .app-chat-row {
+    @apply flex min-w-0 items-center rounded-md;
   }
 
   .app-chat-item {
-    @apply flex w-full items-center rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground;
+    @apply flex min-w-0 flex-1 items-center rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground;
   }
 
   .app-chat-item-active {
@@ -188,17 +205,44 @@
     @apply min-w-0 flex-1 truncate text-start;
   }
 
+  .app-chat-actions {
+    @apply flex shrink-0 items-center gap-0.5 pr-2 opacity-0 transition-opacity;
+  }
+
+  .app-chat-row:hover .app-chat-actions {
+    @apply opacity-100;
+  }
+
+  .app-chat-action {
+    @apply flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-background hover:text-foreground;
+  }
+
+  .app-chat-action-danger {
+    @apply hover:bg-destructive/10 hover:text-destructive;
+  }
+
+  .app-chat-input {
+    @apply m-1 min-w-0 flex-1 rounded-md border bg-background px-2.5 py-1.5 text-sm text-foreground outline-none focus:border-ring;
+  }
+
+  .app-chat-confirm {
+    @apply flex min-w-0 flex-1 items-center justify-end gap-1 px-1 py-1;
+  }
+
+  .app-chat-confirm-label {
+    @apply mr-auto px-2 text-xs text-muted-foreground;
+  }
+
+  .app-chat-confirm-btn {
+    @apply rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground;
+  }
+
+  .app-chat-confirm-danger {
+    @apply text-destructive hover:bg-destructive/10 hover:text-destructive;
+  }
+
   .app-chat-note {
     @apply px-3 py-2 text-sm text-muted-foreground;
-  }
-
-  .app-header {
-    @apply flex shrink-0 items-center justify-between gap-4 border-b px-6 py-3.5;
-  }
-
-  .app-title {
-    @apply font-heading text-2xl font-extrabold;
-    font-variation-settings: 'wght' 900, 'ROND' 100;
   }
 
   .app-thread {

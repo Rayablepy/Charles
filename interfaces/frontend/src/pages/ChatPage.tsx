@@ -26,9 +26,6 @@ export default function ChatPage() {
           onSelect={handleSelectThread}
         />
         <main className="app-main">
-          <header className="app-header">
-            <h1 className="app-title">Charles</h1>
-          </header>
           <div className="app-thread">
             <Thread
               components={{

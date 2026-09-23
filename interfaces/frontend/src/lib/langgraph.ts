@@ -101,6 +101,19 @@ export function titleForChat(thread: {
   return "Untitled chat";
 }
 
+/** Persist a custom title for a chat (replaces metadata.title). */
+export async function renameChat(threadId: string, title: string): Promise<void> {
+  const thread = await langgraphClient.threads.get(threadId);
+  await langgraphClient.threads.update(threadId, {
+    metadata: { ...(thread.metadata ?? {}), title },
+  });
+}
+
+/** Delete a chat and its whole conversation from the server. */
+export async function deleteChat(threadId: string): Promise<void> {
+  await langgraphClient.threads.delete(threadId);
+}
+
 /** List chats newest-first for the sidebar, backed by the LangGraph API. */
 export async function listChats(limit = 50): Promise<ChatSummary[]> {
   const threads = await langgraphClient.threads.search({ limit });
