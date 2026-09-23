@@ -12,11 +12,17 @@ export default function ChatPage() {
     <div className="app">
       <header className="app-header">
         <h1 className="app-title">Charles</h1>
-        <p className="app-subtitle">Local agent · chat interface</p>
+        <p className="app-subtitle">Local LangGraph agent · chat interface</p>
       </header>
       <main className="app-thread">
         <ChatRuntimeProvider>
-          <Thread />
+          <Thread
+            components={{
+              ToolFallback: () => null,
+              ToolGroup: () => null,
+              TaskGroup: () => null,
+            }}
+          />
         </ChatRuntimeProvider>
       </main>
     </div>

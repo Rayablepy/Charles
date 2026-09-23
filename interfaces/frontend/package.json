@@ -11,10 +11,12 @@
   },
   "dependencies": {
     "@assistant-ui/react": "^0.15.21",
+    "@assistant-ui/react-langgraph": "^0.14.29",
     "@assistant-ui/react-markdown": "^0.14.16",
     "@base-ui/react": "^1.8.0",
     "@fontsource-variable/geist": "^5.3.0",
     "@langchain/core": "^1.2.12",
+    "@langchain/langgraph-sdk": "^1.11.2",
     "@langchain/react": "^1.1.1",
     "@tailwindcss/vite": "^4.3.3",
     "class-variance-authority": "^0.7.1",
