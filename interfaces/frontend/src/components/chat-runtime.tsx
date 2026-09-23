@@ -10,7 +10,15 @@ import {
 } from "@assistant-ui/react-langgraph";
 import { LANGGRAPH_ASSISTANT_ID, langgraphClient } from "@/lib/langgraph";
 
-export function ChatRuntimeProvider({ children }: { children: ReactNode }) {
+export function ChatRuntimeProvider({
+  children,
+  threadId,
+  onThreadIdChange,
+}: {
+  children: ReactNode;
+  threadId?: string | undefined;
+  onThreadIdChange?: (threadId: string | undefined) => void;
+}) {
   const stream = useMemo(
     () =>
       unstable_createLangGraphStream({
@@ -22,6 +30,8 @@ export function ChatRuntimeProvider({ children }: { children: ReactNode }) {
 
   const runtime = useLangGraphRuntime({
     unstable_allowCancellation: true,
+    threadId,
+    onThreadIdChange,
     stream,
     create: async () => {
       const thread = await langgraphClient.threads.create();

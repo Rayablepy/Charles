@@ -2,12 +2,13 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
+@import "@fontsource-variable/doto";
 @import "tw-shimmer";
 
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: var(--font-sans);
+    --font-heading: 'Doto Variable', sans-serif;
     --font-sans: 'Geist Variable', sans-serif;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
@@ -152,7 +153,43 @@
 
 @layer components {
   .app {
-    @apply flex h-dvh flex-col bg-background text-foreground;
+    @apply flex h-dvh bg-background text-foreground;
+  }
+
+  .app-main {
+    @apply flex min-w-0 flex-1 flex-col;
+  }
+
+  .app-sidebar {
+    @apply flex w-64 shrink-0 flex-col border-r bg-muted/40;
+  }
+
+  .app-sidebar-header {
+    @apply shrink-0 border-b p-3;
+  }
+
+  .app-new-chat {
+    @apply flex w-full items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent;
+  }
+
+  .app-chat-list {
+    @apply min-h-0 flex-1 overflow-y-auto p-2;
+  }
+
+  .app-chat-item {
+    @apply flex w-full items-center rounded-md px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground;
+  }
+
+  .app-chat-item-active {
+    @apply bg-accent text-foreground;
+  }
+
+  .app-chat-title {
+    @apply min-w-0 flex-1 truncate text-start;
+  }
+
+  .app-chat-note {
+    @apply px-3 py-2 text-sm text-muted-foreground;
   }
 
   .app-header {
@@ -160,7 +197,8 @@
   }
 
   .app-title {
-    @apply text-base font-semibold tracking-tight;
+    @apply font-heading text-2xl font-extrabold;
+    font-variation-settings: 'wght' 900, 'ROND' 100;
   }
 
   .app-subtitle {
@@ -169,5 +207,20 @@
 
   .app-thread {
     @apply min-h-0 flex-1;
+  }
+
+  .app-welcome-brand {
+    @apply font-heading text-xs font-bold uppercase text-muted-foreground;
+    letter-spacing: 0.25em;
+    font-variation-settings: 'wght' 800, 'ROND' 100;
+  }
+
+  .app-welcome-title {
+    @apply mt-3 font-heading text-4xl font-extrabold text-foreground;
+    font-variation-settings: 'wght' 900, 'ROND' 100;
+  }
+
+  .app-welcome-subtitle {
+    @apply mt-3 max-w-md text-muted-foreground;
   }
 }

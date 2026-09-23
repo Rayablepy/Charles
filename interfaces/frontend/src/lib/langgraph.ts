@@ -69,3 +69,47 @@ export function extractAgentAnswer(messages: readonly ServerMessage[]): string {
 export function toLangGraphUserMessage(text: string) {
   return { role: "user", content: text };
 }
+
+export type ChatSummary = {
+  id: string;
+  title: string;
+  updatedAt: string;
+};
+
+function firstUserMessageText(values: unknown): string {
+  const messages = (
+    values as { messages?: readonly { type?: string; content?: unknown }[] } | null
+  )?.messages;
+  if (!messages) return "";
+  for (const message of messages) {
+    if (message.type !== "human") continue;
+    const text = textFromContent(message.content);
+    if (text) return text;
+  }
+  return "";
+}
+
+/** Display title for a chat: metadata.title → first user message → fallback. */
+export function titleForChat(thread: {
+  metadata?: Record<string, unknown> | null;
+  values?: unknown;
+}): string {
+  const named = thread.metadata?.title;
+  if (typeof named === "string" && named.trim()) return named.trim();
+  const first = firstUserMessageText(thread.values);
+  if (first) return first.length > 60 ? `${first.slice(0, 57)}…` : first;
+  return "Untitled chat";
+}
+
+/** List chats newest-first for the sidebar, backed by the LangGraph API. */
+export async function listChats(limit = 50): Promise<ChatSummary[]> {
+  const threads = await langgraphClient.threads.search({ limit });
+  return threads
+    .map((thread) => ({
+      id: thread.thread_id,
+      title: titleForChat(thread),
+      updatedAt:
+        thread.updated_at ?? thread.state_updated_at ?? thread.created_at,
+    }))
+    .sort((a, b) => (a.updatedAt < b.updatedAt ? 1 : -1));
+}
