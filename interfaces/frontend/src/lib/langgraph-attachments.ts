@@ -125,7 +125,10 @@ export class RagUploadAttachmentAdapter implements AttachmentAdapter {
         }
         throw new Error(detail || `Upload failed (${res.status})`);
       }
-      const { source } = (await res.json()) as { source: string };
+      const { source, job_id } = (await res.json()) as {
+        source: string
+        job_id?: string
+      }
       return {
         ...attachment,
         status: { type: "complete" },
@@ -134,7 +137,9 @@ export class RagUploadAttachmentAdapter implements AttachmentAdapter {
             type: "text",
             text: `[The file "${escapeLabel(
               source,
-            )}" was parsed and added to the knowledge base. Use query_data to answer from it when relevant.]`,
+            )}" was uploaded for indexing${
+              job_id ? ` (job ${job_id})` : ""
+            }. It becomes searchable via query_data once indexing finishes. If query_data returns nothing yet, wait a few seconds and call query_data again.]`,
           },
         ],
       };

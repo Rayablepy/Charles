@@ -2,6 +2,7 @@ import os
 import re
 import shutil
 import textract
+import hashlib
 from functools import lru_cache
 from langchain_text_splitters import TokenTextSplitter
 from langchain_core.documents import Document
@@ -55,15 +56,26 @@ def sanitize_name(original: str) -> str:
     return name
 
 
+def _sha1_of(path: str) -> str:
+    h = hashlib.sha1()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1024 * 1024), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
 def read_data(file_path: str) -> list[Document]:
     try:
         text = textract.process(file_path).decode("utf-8")
     except Exception as e:
-        raise RuntimeError(f"Failed to read {file_path}: {e}")
+        raise RuntimeError(f"Failed to parse the file: {e}")
     return [
         Document(
             page_content=text,
-            metadata={"source": os.path.basename(file_path)},
+            metadata={
+                "source": os.path.basename(file_path),
+                "sha1": _sha1_of(file_path),
+            },
         )
     ]
 
@@ -84,10 +96,27 @@ def ingest_file(upload_path: str, original_name: str) -> str:
     source = sanitize_name(original_name)
     os.makedirs(CHROMA_PERSIST_DIR, exist_ok=True)
     dest = os.path.join(CHROMA_PERSIST_DIR, source)
+    digest = _sha1_of(upload_path)
     if os.path.abspath(upload_path) != os.path.abspath(dest):
         shutil.copyfile(upload_path, dest)
-    save_data(source)
-    return source
+    try:
+        existing = get_store()._collection.get(
+            where={"source": source}, include=["metadatas"], limit=1
+        )
+        existing_sha1 = (existing.get("metadatas") or [{}])[0].get("sha1")
+    except Exception:
+        existing_sha1 = None
+    if existing_sha1 == digest:
+        return "already-indexed"
+    try:
+        save_data(source)
+    except Exception:
+        try:
+            os.remove(dest)
+        except OSError:
+            pass
+        raise
+    return "indexed"
 
 def list_data() -> list[str]:
     collection = get_store()._collection
@@ -102,4 +131,8 @@ def list_data() -> list[str]:
 def delete_data(file_name: str) -> str:
     source = os.path.basename(file_name)
     get_store().delete(where={"source": source})
+    try:
+        os.remove(os.path.join(CHROMA_PERSIST_DIR, source))
+    except OSError:
+        pass
     return f"Deleted documents with source: {source}"

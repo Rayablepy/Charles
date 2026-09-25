@@ -89,6 +89,11 @@ function firstUserMessageText(values: unknown): string {
   return "";
 }
 
+/** Strip the auto-generated "[The file ... was uploaded for indexing]" marker. */
+function stripUploadMarker(text: string): string {
+  return text.replace(/^\[The file .*?\]\s*/s, "").trim();
+}
+
 /** Display title for a chat: metadata.title → first user message → fallback. */
 export function titleForChat(thread: {
   metadata?: Record<string, unknown> | null;
@@ -96,7 +101,7 @@ export function titleForChat(thread: {
 }): string {
   const named = thread.metadata?.title;
   if (typeof named === "string" && named.trim()) return named.trim();
-  const first = firstUserMessageText(thread.values);
+  const first = stripUploadMarker(firstUserMessageText(thread.values));
   if (first) return first.length > 60 ? `${first.slice(0, 57)}…` : first;
   return "Untitled chat";
 }
