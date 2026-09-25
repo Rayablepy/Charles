@@ -20,7 +20,6 @@ def get_embeddings():
     )
 
 
-@lru_cache(maxsize=1)
 def get_store():
     return Chroma(
         collection_name="NL2SQL",
@@ -29,7 +28,6 @@ def get_store():
     )
 
 
-@lru_cache(maxsize=1)
 def get_retriever():
     return get_store().as_retriever(
         search_type="similarity",
