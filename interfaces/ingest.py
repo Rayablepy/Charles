@@ -23,6 +23,14 @@ TERMINAL = {"indexed", "already-indexed", "failed"}
 
 JOBS: dict[str, dict] = {}
 QUEUE: queue.Queue[str] = queue.Queue()
+MAX_JOBS = 200
+
+
+def _remember(job_id: str, job: dict) -> None:
+    """Store a job, dropping the oldest once JOBS exceeds MAX_JOBS."""
+    JOBS[job_id] = job
+    while len(JOBS) > MAX_JOBS:
+        JOBS.pop(next(iter(JOBS)))
 
 
 def sanitize_error(text: str) -> str:
@@ -112,15 +120,30 @@ async def upload(file: UploadFile | None = File(default=None)) -> dict:
         raise HTTPException(status_code=400, detail="empty file")
 
     job_id = str(uuid.uuid4())
-    JOBS[job_id] = {
-        "job_id": job_id,
-        "status": "queued",
-        "source": source,
-        "name": source,
-        "path": staging,
-    }
+    _remember(
+        job_id,
+        {
+            "job_id": job_id,
+            "status": "queued",
+            "source": source,
+            "name": source,
+            "path": staging,
+        },
+    )
     QUEUE.put(job_id)
     return {"ok": True, "job_id": job_id, "source": source, "status": "queued"}
+
+
+@app.get("/uploads/{job_id}")
+async def job_status(job_id: str) -> dict:
+    """Return the current status of an ingest job (polled by the frontend)."""
+    job = JOBS.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="unknown job")
+    payload = {"job_id": job["job_id"], "status": job["status"], "source": job["source"]}
+    if job.get("error"):
+        payload["error"] = job["error"]
+    return payload
 
 
 if __name__ == "__main__":
