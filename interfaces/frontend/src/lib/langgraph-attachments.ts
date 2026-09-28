@@ -4,11 +4,7 @@ import type {
   PendingAttachment,
 } from "@assistant-ui/react";
 
-/**
- * Whitelist of attachable file types for the RAG upload flow.
- * Deliberately excludes images, videos and audio — those are blocked for now.
- * Matched by MIME type and by file extension (see fileMatchesAccept).
- */
+/*whitelist allowed file types*/
 const ACCEPT = [
   "text/*",
   "application/json",
@@ -87,11 +83,31 @@ function escapeLabel(name: string) {
   return name.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 }
 
-/**
- * Uploads the raw file bytes to the backend (Vite middleware → ingest
- * script → RAG vector store), then emits a short notice so the agent knows
- * the document is queryable via query_data.
- */
+const INGEST_API_URL =
+  import.meta.env.VITE_INGEST_API_URL ?? "http://127.0.0.1:2030";
+
+const POLL_INTERVAL_MS = 500;
+const POLL_TIMEOUT_MS = 60_000;
+
+type JobStatus = {
+  job_id: string;
+  status: "queued" | "ingesting" | "indexed" | "already-indexed" | "failed";
+  source: string;
+  error?: string;
+};
+
+async function errorDetail(res: Response): Promise<string> {
+  let detail = "";
+  try {
+    const body = (await res.json()) as { detail?: string; error?: string };
+    detail = body.detail ?? body.error ?? "";
+  } catch {
+    /* non-JSON error body */
+  }
+  return detail || `request failed (${res.status})`;
+}
+
+/*check if job is complete by polling the endpoint and returning status*/
 export class RagUploadAttachmentAdapter implements AttachmentAdapter {
   public readonly accept = ACCEPT;
 
@@ -107,42 +123,39 @@ export class RagUploadAttachmentAdapter implements AttachmentAdapter {
   }
 
   async send(attachment: PendingAttachment): Promise<CompleteAttachment> {
-    try {
-      const res = await fetch("/rag/upload", {
-        method: "POST",
-        headers: {
-          "content-type": attachment.file.type || "application/octet-stream",
-          "x-file-name": encodeURIComponent(attachment.name),
+    const source = await this.uploadAndWait(attachment);
+    return {
+      ...attachment,
+      status: { type: "complete" },
+      content: [
+        {
+          type: "text",
+          text: `[The file "${escapeLabel(
+            source,
+          )}" was added to the knowledge base and can be retrieved via query_data.]`,
         },
-        body: attachment.file,
+      ],
+    };
+  }
+
+  /** Enqueues the upload, waits for indexing, returns the display source name. */
+  private async uploadAndWait(attachment: PendingAttachment): Promise<string> {
+    let jobId: string
+    let source: string
+    try {
+      const form = new FormData();
+      form.append("file", attachment.file, attachment.name);
+      const res = await fetch(`${INGEST_API_URL}/uploads`, {
+        method: "POST",
+        body: form,
       });
       if (!res.ok) {
-        let detail = "";
-        try {
-          detail = ((await res.json()) as { error?: string }).error ?? "";
-        } catch {
-          /* non-JSON error body */
-        }
-        throw new Error(detail || `Upload failed (${res.status})`);
+        throw new Error(await errorDetail(res));
       }
-      const { source, job_id } = (await res.json()) as {
-        source: string
-        job_id?: string
-      }
-      return {
-        ...attachment,
-        status: { type: "complete" },
-        content: [
-          {
-            type: "text",
-            text: `[The file "${escapeLabel(
-              source,
-            )}" was uploaded for indexing${
-              job_id ? ` (job ${job_id})` : ""
-            }. It becomes searchable via query_data once indexing finishes. If query_data returns nothing yet, wait a few seconds and call query_data again.]`,
-          },
-        ],
-      };
+      const body = (await res.json()) as { job_id?: string; source?: string };
+      jobId = body.job_id ?? "";
+      source = body.source ?? attachment.name;
+      if (!jobId) throw new Error("no job id returned");
     } catch (err) {
       throw new Error(
         `Could not add ${attachment.name} to the knowledge base: ${
@@ -150,6 +163,33 @@ export class RagUploadAttachmentAdapter implements AttachmentAdapter {
         }`,
       );
     }
+
+    const deadline = Date.now() + POLL_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+      const res = await fetch(`${INGEST_API_URL}/uploads/${jobId}`);
+      if (res.status === 404) {
+        throw new Error(
+          `Could not add ${attachment.name} to the knowledge base: ingest job was lost`,
+        );
+      }
+      if (res.ok) {
+        const job = (await res.json()) as JobStatus;
+        if (job.status === "indexed" || job.status === "already-indexed") {
+          return source;
+        }
+        if (job.status === "failed") {
+          throw new Error(
+            `Could not add ${attachment.name} to the knowledge base: ${
+              job.error ?? "indexing failed"
+            }`,
+          );
+        }
+      }
+      await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    }
+    throw new Error(
+      `Could not add ${attachment.name} to the knowledge base: indexing timed out`,
+    );
   }
 
   async remove() {}
