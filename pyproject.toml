@@ -24,4 +24,5 @@ dependencies = [
     "transformers>=5.14.1",
     "langgraph-cli[inmem]>=0.4.31",
     "fastapi>=0.141.1",
+    "click>=8.4.2",
 ]

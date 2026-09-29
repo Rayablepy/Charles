@@ -1,4 +1,3 @@
-import argparse
 import asyncio
 import os
 import shutil
@@ -10,86 +9,112 @@ import urllib.request
 import webbrowser
 from pathlib import Path
 
+import click
+
 ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
-MODE = sys.argv[1] if len(sys.argv) > 1 else ""
+VENV_BIN = Path(sys.executable).parent
+PYTHON = sys.executable
+LANGGRAPH = VENV_BIN / ("langgraph.exe" if os.name == "nt" else "langgraph")
+FRONTEND = ROOT / "interfaces" / "frontend"
 
-VENV_PY = Path(sys.executable)
-VENV_BIN = VENV_PY.parent
-LANGGRAPH_CLI = VENV_BIN / ("langgraph.exe" if os.name == "nt" else "langgraph")
+CONNECT_TIMEOUT = 1.0
+HEALTH_TIMEOUT = 1.0
+BACKEND_MAX_WAIT = 60.0
+KILL_MAX_WAIT = 5.0
+TASKKILL_TIMEOUT = 15.0
 
 
-def is_up(port: int, timeout: float = 0.6) -> bool:
+def is_up(port: int) -> bool:
     for host in ("127.0.0.1", "::1"):
         try:
-            with socket.create_connection((host, port), timeout=timeout):
+            with socket.create_connection((host, port), timeout=CONNECT_TIMEOUT):
                 return True
         except OSError:
             continue
     return False
 
 
-def wait_up(port: int, seconds: float) -> bool:
-    deadline = time.time() + seconds
+def wait_up(port: int, max_wait: float) -> bool:
+    url = f"http://127.0.0.1:{port}/ok"
+    deadline = time.time() + max_wait
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(f"http://127.0.0.1:{port}/ok", timeout=1):
+            with urllib.request.urlopen(url, timeout=HEALTH_TIMEOUT):
                 return True
         except Exception:
             time.sleep(0.5)
-    print(f"[web] warning: backend on :{port} did not answer within {seconds:.0f}s")
     return False
 
 
 def spawn(name: str, cwd: Path, argv: list, port: int, extra_env: dict | None = None):
     if is_up(port):
-        print(f"[web] {name} already running on :{port} (reused)")
+        click.echo(f"{name} already running on :{port} (reused)")
         return None
-    env = dict(os.environ)
+    click.echo(f"starting {name} on :{port} ...")
+    env = os.environ.copy()
     env.update(extra_env or {})
-    print(f"[web] starting {name} on :{port} ...")
     return subprocess.Popen(argv, cwd=str(cwd), env=env)
 
 
-def kill(proc):
+def kill(proc) -> None:
     if proc.poll() is not None:
         return
     if os.name == "nt":
-        subprocess.run(["taskkill", "/PID", str(proc.pid), "/T", "/F"], capture_output=True, timeout=15)
+        subprocess.run(
+            ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
+            capture_output=True,
+            timeout=TASKKILL_TIMEOUT,
+        )
     else:
         proc.terminate()
     try:
-        proc.wait(timeout=5)
+        proc.wait(timeout=KILL_MAX_WAIT)
     except subprocess.TimeoutExpired:
         pass
 
 
-def web(argv: list):
-    parser = argparse.ArgumentParser(prog="execution.py web")
-    parser.add_argument("--backend-port", type=int, default=2024)
-    parser.add_argument("--ingest-port", type=int, default=2030)
-    parser.add_argument("--vite-port", type=int, default=5173)
-    args = parser.parse_args(argv)
+@click.group()
+def main():
+    pass
 
+
+@main.command()
+def cli():
+    import interfaces.cli
+    asyncio.run(interfaces.cli.main())
+
+
+@main.command()
+@click.option("--backend-port", default=2024, show_default=True, help="langgraph dev server port")
+@click.option("--ingest-port", default=2030, show_default=True, help="document ingest API port")
+@click.option("--vite-port", default=5173, show_default=True, help="vite dev server port")
+@click.option("--backend-wait", default=BACKEND_MAX_WAIT, show_default=True,
+              help="max seconds to wait for a cold backend to become ready")
+@click.option("--no-open", is_flag=True, help="do not open the browser")
+def web(backend_port, ingest_port, vite_port, backend_wait, no_open):
     procs = []
+
     backend = spawn(
         "langgraph backend",
         ROOT,
-        [str(VENV_PY), str(LANGGRAPH_CLI), "dev", "--host", "127.0.0.1",
-         "--port", str(args.backend_port), "--no-browser"],
-        args.backend_port,
+        [PYTHON, str(LANGGRAPH), "dev", "--host", "127.0.0.1",
+         "--port", str(backend_port), "--no-browser"],
+        backend_port,
     )
     if backend:
         procs.append(backend)
-        wait_up(args.backend_port, 60)
+        if not wait_up(backend_port, backend_wait):
+            click.echo(f"warning: backend not ready within {backend_wait:.0f}s")
 
     ingest = spawn(
         "ingest api",
         ROOT,
-        [str(VENV_PY), "-m", "interfaces.ingest"],
-        args.ingest_port,
-        {"INGEST_API_HOST": "127.0.0.1", "INGEST_API_PORT": str(args.ingest_port)},
+        [PYTHON, "-m", "interfaces.ingest"],
+        ingest_port,
+        {"INGEST_API_HOST": "127.0.0.1", "INGEST_API_PORT": str(ingest_port)},
     )
     if ingest:
         procs.append(ingest)
@@ -98,54 +123,35 @@ def web(argv: list):
     if npm:
         vite = spawn(
             "vite frontend",
-            ROOT / "interfaces" / "frontend",
+            FRONTEND,
             [npm, "run", "dev", "--", "--host", "127.0.0.1",
-             "--port", str(args.vite_port), "--strictPort"],
-            args.vite_port,
+             "--port", str(vite_port), "--strictPort"],
+            vite_port,
         )
         if vite:
             procs.append(vite)
     else:
-        print("[web] npm not found; skipping frontend")
+        click.echo("npm not found; skipping frontend")
 
-    url = f"http://localhost:{args.vite_port}/"
-    print(f"[web] {url}  (Ctrl+C to stop)")
-    webbrowser.open(url)
+    url = f"http://localhost:{vite_port}/"
+    if not no_open:
+        webbrowser.open(url)
+    click.echo(f"{url}  (Ctrl+C to stop)")
 
     if not procs:
-        print("[web] nothing to manage - all components already running")
-        return 0
+        click.echo("nothing to manage - all components already running")
+        return
 
     try:
         while any(p.poll() is None for p in procs):
             time.sleep(1)
     except KeyboardInterrupt:
-        print("\n[web] shutting down ...")
+        click.echo("\nshutting down ...")
     finally:
         for p in procs:
             kill(p)
-        print("[web] stopped")
-    return 0
+        click.echo("stopped")
 
 
-USAGE = """\
-usage:
-  python execution.py cli             console agent loop
-  python execution.py web             full web app (backend + ingest + vite)
-    --backend-port N    langgraph dev port   (default 2024)
-    --ingest-port N     ingest api port      (default 2030)
-    --vite-port N       vite dev port        (default 5173)
-"""
-
-
-if MODE == "cli":
-    from interfaces.cli import main
-    asyncio.run(main())
-elif MODE == "web":
-    sys.exit(web(sys.argv[2:]))
-elif MODE in ("-h", "--help", "help"):
-    print(USAGE)
-    sys.exit(0)
-else:
-    print(USAGE)
-    sys.exit(2)
+if __name__ == "__main__":
+    main()
