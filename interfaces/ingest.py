@@ -13,11 +13,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from memory.vectorstore import ingest_file, sanitize_name
+from memory.vectorstore import ingest_file, read_data, sanitize_name
 
 HOST = os.getenv("INGEST_API_HOST", "127.0.0.1")
 PORT = int(os.getenv("INGEST_API_PORT", "2030"))
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
+TRANSCRIBE_MAX_CHARS = 100_000
 STAGING_PREFIX = "rag-upload-"
 TERMINAL = {"indexed", "already-indexed", "failed"}
 
@@ -135,6 +136,51 @@ async def upload(file: UploadFile | None = File(default=None)) -> dict:
     )
     QUEUE.put(job_id)
     return {"ok": True, "job_id": job_id, "source": source, "status": "queued"}
+
+
+@app.post("/transcribe", status_code=HTTPStatus.OK)
+async def transcribe(file: UploadFile | None = File(default=None)) -> dict:
+    if file is None or not file.filename:
+        raise HTTPException(status_code=400, detail="missing file")
+
+    try:
+        source = sanitize_name(file.filename)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    staging = os.path.join(
+        tempfile.gettempdir(),
+        f"{STAGING_PREFIX}{uuid.uuid4()}{os.path.splitext(source)[1]}",
+    )
+    try:
+        size = await stream_file(file, staging)
+    except HTTPException:
+        os.remove(staging)
+        raise
+    except OSError as exc:
+        os.remove(staging)
+        raise HTTPException(status_code=500, detail="failed to store upload") from exc
+
+    try:
+        if size == 0:
+            raise HTTPException(status_code=400, detail="empty file")
+        text = read_data(staging)[0].page_content
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=422,
+            detail=sanitize_error(f"{type(exc).__name__}: {exc}"),
+        ) from exc
+    finally:
+        try:
+            os.remove(staging)
+        except OSError:
+            pass
+
+    if len(text) > TRANSCRIBE_MAX_CHARS:
+        text = text[:TRANSCRIBE_MAX_CHARS] + "\n[...transcript truncated...]"
+    return {"ok": True, "source": source, "text": text}
 
 
 @app.get("/uploads/{job_id}")

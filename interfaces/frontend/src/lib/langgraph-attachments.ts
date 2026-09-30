@@ -7,7 +7,7 @@ import {
   ACCEPT,
   MAX_UPLOAD_BYTES,
   tooLargeMessage,
-  uploadToMemory,
+  transcribeFile,
 } from "@/lib/rag-upload";
 
 function escapeLabel(name: string) {
@@ -59,16 +59,16 @@ export class RagUploadAttachmentAdapter implements AttachmentAdapter {
           tooLargeMessage(attachment.name, attachment.file.size),
       );
     }
-    const source = await uploadToMemory(attachment.file);
+    const text = await transcribeFile(attachment.file);
     return {
       ...attachment,
       status: { type: "complete" },
       content: [
         {
           type: "text",
-          text: `[The file "${escapeLabel(
-            source,
-          )}" was added to the knowledge base and can be retrieved via query_data.]`,
+          text: `[Attached file "${escapeLabel(
+            attachment.name,
+          )}". Its contents are included below.]\n\n${text}`,
         },
       ],
     };

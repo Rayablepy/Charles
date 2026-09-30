@@ -111,6 +111,8 @@ function wrapError(name: string, detail: string): Error {
 
 type UploadResult = { jobId: string; source: string };
 
+type TranscribeResult = { source: string; text: string };
+
 /*POST the file via XHR so byte-level upload progress can be reported*/
 function postUpload(
   file: File,
@@ -194,6 +196,52 @@ export async function uploadToMemory(
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
   throw wrapError(file.name, "indexing timed out");
+}
+
+/*send the file to the transcribe endpoint and return its text content*/
+export async function transcribeFile(
+  file: File,
+  onProgress?: (fraction: number) => void,
+): Promise<string> {
+  if (isTooLarge(file)) throw new Error(tooLargeMessage(file.name, file.size));
+
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", `${INGEST_API_URL}/transcribe`);
+  if (onProgress) {
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable && event.total > 0) {
+        onProgress(Math.min(event.loaded / event.total, 1));
+      }
+    };
+  }
+  const result = await new Promise<TranscribeResult>((resolve, reject) => {
+    xhr.onerror = () =>
+      reject(new Error(`network error (${INGEST_API_URL}) transcribed ${file.name}`));
+    xhr.onload = () => {
+      let body: { text?: string; source?: string; detail?: string };
+      try {
+        body = JSON.parse(xhr.responseText);
+      } catch {
+        reject(new Error(`request failed (${xhr.status}) transcribing ${file.name}`));
+        return;
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        const text = body.text ?? "";
+        if (!text) {
+          reject(new Error(`no text returned for ${file.name}`));
+          return;
+        }
+        resolve({ source: body.source ?? file.name, text });
+        return;
+      }
+      const detail = typeof body.detail === "string" ? body.detail : "";
+      reject(new Error(detail || `request failed (${xhr.status}) transcribing ${file.name}`));
+    };
+    xhr.send(form);
+  });
+  return result.text;
 }
 
 export { ACCEPT, INGEST_API_URL, MAX_UPLOAD_BYTES, tooLargeMessage, isTooLarge };
