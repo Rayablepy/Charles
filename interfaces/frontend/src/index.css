@@ -245,6 +245,38 @@
     @apply px-3 py-2 text-sm text-muted-foreground;
   }
 
+  .app-memory {
+    @apply flex shrink-0 flex-col gap-2 border-t p-3;
+  }
+
+  .app-memory-label {
+    @apply text-xs font-medium uppercase text-muted-foreground;
+  }
+
+  .app-memory-button {
+    @apply flex w-full items-center justify-center gap-2 rounded-md border border-dashed bg-background px-3 py-2 text-sm font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-70;
+  }
+
+  .app-memory-progress {
+    @apply h-1.5 w-full overflow-hidden rounded-full bg-muted;
+  }
+
+  .app-memory-progress-fill {
+    @apply h-full rounded-full bg-foreground transition-[width] duration-200 motion-reduce:transition-none;
+  }
+
+  .app-memory-note {
+    @apply px-1 text-xs;
+  }
+
+  .app-memory-note-ok {
+    @apply text-muted-foreground;
+  }
+
+  .app-memory-note-error {
+    @apply text-destructive;
+  }
+
   .app-thread {
     @apply min-h-0 flex-1;
   }

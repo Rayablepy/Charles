@@ -17,7 +17,7 @@ from memory.vectorstore import ingest_file, sanitize_name
 
 HOST = os.getenv("INGEST_API_HOST", "127.0.0.1")
 PORT = int(os.getenv("INGEST_API_PORT", "2030"))
-MAX_UPLOAD_BYTES = 50 * 1024 * 1024
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 STAGING_PREFIX = "rag-upload-"
 TERMINAL = {"indexed", "already-indexed", "failed"}
 
@@ -26,8 +26,7 @@ QUEUE: queue.Queue[str] = queue.Queue()
 MAX_JOBS = 200
 
 
-def _remember(job_id: str, job: dict) -> None:
-    """Store a job, dropping the oldest once JOBS exceeds MAX_JOBS."""
+def remember(job_id: str, job: dict) -> None:
     JOBS[job_id] = job
     while len(JOBS) > MAX_JOBS:
         JOBS.pop(next(iter(JOBS)))
@@ -89,7 +88,11 @@ async def stream_file(file: UploadFile, staging: str) -> int:
             if size > MAX_UPLOAD_BYTES:
                 raise HTTPException(
                     status_code=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
-                    detail="file too large",
+                    detail=(
+                        f"{file.filename} is too large "
+                        f"({size / (1024 * 1024):.1f} MB). "
+                        f"Maximum file size is {MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
+                    ),
                 )
             out.write(chunk)
     return size
@@ -120,7 +123,7 @@ async def upload(file: UploadFile | None = File(default=None)) -> dict:
         raise HTTPException(status_code=400, detail="empty file")
 
     job_id = str(uuid.uuid4())
-    _remember(
+    remember(
         job_id,
         {
             "job_id": job_id,
@@ -136,7 +139,6 @@ async def upload(file: UploadFile | None = File(default=None)) -> dict:
 
 @app.get("/uploads/{job_id}")
 async def job_status(job_id: str) -> dict:
-    """Return the current status of an ingest job (polled by the frontend)."""
     job = JOBS.get(job_id)
     if not job:
         raise HTTPException(status_code=404, detail="unknown job")

@@ -25,4 +25,5 @@ dependencies = [
     "langgraph-cli[inmem]>=0.4.31",
     "fastapi>=0.141.1",
     "click>=8.4.2",
+    "browser-use>=0.11.13",
 ]

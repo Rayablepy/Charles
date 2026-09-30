@@ -5,6 +5,7 @@ import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useAuiState } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { MemoryUpload } from "@/components/memory-upload";
 import {
   listChats,
   deleteChat,
@@ -166,6 +167,7 @@ export function ChatSidebar({
           )}
         </div>
       </nav>
+      <MemoryUpload />
     </aside>
   );
 }
