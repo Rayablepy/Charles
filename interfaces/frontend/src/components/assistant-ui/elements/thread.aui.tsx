@@ -26,6 +26,7 @@ import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-ic
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { isAttachmentTranscript } from "@/lib/langgraph-attachments";
 import {
   ActionBarMorePrimitive,
   ActionBarPrimitive,
@@ -42,6 +43,7 @@ import {
   type ImageMessagePartComponent,
   type TextMessagePartComponent,
   type ToolCallMessagePartComponent,
+  useAui,
   useAuiState,
 } from "@assistant-ui/react";
 import {
@@ -604,6 +606,13 @@ const UserImagePart: ImageMessagePartComponent = (part) => (
   </div>
 );
 
+/*attached-file transcripts are hidden from the user message body but still
+reach the agent through the wire message*/
+const UserTextPart: TextMessagePartComponent = ({ text }) => {
+  if (isAttachmentTranscript(text)) return null;
+  return <MarkdownText text={text} />;
+};
+
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
@@ -616,7 +625,11 @@ const UserMessage: FC = () => {
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div className="aui-user-message-content peer bg-muted text-foreground rounded-(--composer-radius) px-4 py-2 wrap-break-word empty:hidden">
           <MessagePrimitive.Parts
-            components={{ File: UserFilePart, Image: UserImagePart }}
+            components={{
+              Text: UserTextPart,
+              File: UserFilePart,
+              Image: UserImagePart,
+            }}
           />
         </div>
         <div className="aui-user-action-bar-wrapper absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-2 peer-empty:hidden rtl:translate-x-full">
@@ -632,6 +645,36 @@ const UserMessage: FC = () => {
   );
 };
 
+const UserEditButton: FC = () => {
+  const aui = useAui();
+  const disabled = useAuiState(
+    (s) =>
+      s.message.composer.isEditing ||
+      s.thread.capabilities.edit === false,
+  );
+  const text = useAuiState((s) =>
+    s.message.content
+      .filter((part): part is Extract<typeof part, { type: "text" }> =>
+        part.type === "text" && !isAttachmentTranscript(part.text),
+      )
+      .map((part) => part.text)
+      .join("\n\n"),
+  );
+  return (
+    <TooltipIconButton
+      tooltip="Edit"
+      className="aui-user-action-edit"
+      disabled={disabled}
+      onClick={() => {
+        aui.composer.beginEdit();
+        aui.composer.setText(text);
+      }}
+    >
+      <PencilIcon />
+    </TooltipIconButton>
+  );
+};
+
 const UserActionBar: FC = () => {
   return (
     <ActionBarPrimitive.Root
@@ -639,7 +682,7 @@ const UserActionBar: FC = () => {
       autohide="not-last"
       className="aui-user-action-bar-root flex flex-col items-end"
     >
-      <ActionBarPrimitive.Edit render={<TooltipIconButton tooltip="Edit" className="aui-user-action-edit" />}><PencilIcon /></ActionBarPrimitive.Edit>
+      <UserEditButton />
     </ActionBarPrimitive.Root>
   );
 };

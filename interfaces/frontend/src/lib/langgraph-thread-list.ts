@@ -6,14 +6,6 @@ import type { AssistantStream } from "assistant-stream";
 import type { Client, Thread } from "@langchain/langgraph-sdk";
 import { deleteChat, renameChat, titleForChat } from "./langgraph";
 
-/**
- * RemoteThreadListAdapter backed by the LangGraph API. Lets `useLangGraphRuntime`
- * manage real server threads through `useRemoteThreadListRuntime`: the sidebar
- * list is sourced from `threads/search`, and selecting an existing chat switches
- * the active thread so its prior conversation loads via the runtime's `load`
- * callback. Without this adapter the runtime falls back to an in-memory list,
- * which cannot select or load an existing thread ID.
- */
 export function createLangGraphThreadListAdapter(
   client: Client,
 ): RemoteThreadListAdapter {

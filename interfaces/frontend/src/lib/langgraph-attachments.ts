@@ -10,6 +10,16 @@ import {
   transcribeFile,
 } from "@/lib/rag-upload";
 
+export const TRANSCRIPT_MARKER_START = '[Attached file "';
+export const TRANSCRIPT_MARKER_END = ". Full contents included below.]";
+
+export function isAttachmentTranscript(text: string): boolean {
+  return (
+    text.startsWith(TRANSCRIPT_MARKER_START) &&
+    text.includes(TRANSCRIPT_MARKER_END)
+  );
+}
+
 function escapeLabel(name: string) {
   return name.replaceAll("\\", "\\\\").replaceAll('"', '\\"');
 }
@@ -68,7 +78,7 @@ export class RagUploadAttachmentAdapter implements AttachmentAdapter {
           type: "text",
           text: `[Attached file "${escapeLabel(
             attachment.name,
-          )}". Its contents are included below.]\n\n${text}`,
+          )}". Full contents included below.]\n\n${text}`,
         },
       ],
     };
