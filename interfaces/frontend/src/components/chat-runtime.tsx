@@ -11,6 +11,10 @@ import {
 import { LANGGRAPH_ASSISTANT_ID, langgraphClient } from "@/lib/langgraph";
 import { createLangGraphThreadListAdapter } from "@/lib/langgraph-thread-list";
 import { RagUploadAttachmentAdapter } from "@/lib/langgraph-attachments";
+import {
+  withReasoningEvents,
+  withReasoningInMessages,
+} from "@/lib/langgraph-reasoning";
 
 export function ChatRuntimeProvider({
   children,
@@ -23,10 +27,12 @@ export function ChatRuntimeProvider({
 }) {
   const stream = useMemo(
     () =>
-      unstable_createLangGraphStream({
-        client: langgraphClient,
-        assistantId: LANGGRAPH_ASSISTANT_ID,
-      }),
+      withReasoningEvents(
+        unstable_createLangGraphStream({
+          client: langgraphClient,
+          assistantId: LANGGRAPH_ASSISTANT_ID,
+        }),
+      ),
     [],
   );
 
@@ -53,7 +59,9 @@ export function ChatRuntimeProvider({
         const values = state.values as unknown as
           | { messages?: LangChainMessage[] }
           | undefined;
-        return { messages: values?.messages ?? [] };
+        return {
+          messages: withReasoningInMessages(values?.messages ?? []),
+        };
       } catch {
         return { messages: [] };
       }
