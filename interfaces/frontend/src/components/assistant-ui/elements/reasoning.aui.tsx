@@ -1,11 +1,9 @@
 "use client";
 
-import { memo, useCallback, useRef } from "react";
+import { memo, useCallback, useRef, type PropsWithChildren } from "react";
 import {
   useScrollLock,
-  useAuiState,
   type ReasoningMessagePartComponent,
-  type ReasoningGroupComponent,
 } from "@assistant-ui/react";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import {
@@ -58,28 +56,24 @@ function ReasoningRoot({
 
 const ReasoningImpl: ReasoningMessagePartComponent = () => <MarkdownText />;
 
-const ReasoningGroupImpl: ReasoningGroupComponent = ({
+/**
+ * Collapsible container for a `"group-reasoning"` group produced by
+ * `MessagePrimitive.GroupedParts`. Renders the accumulated reasoning parts as
+ * the disclosure body and auto-expands while `running`.
+ */
+function ReasoningGroup({
+  running,
   children,
-  startIndex,
-  endIndex,
-}) => {
-  const isReasoningStreaming = useAuiState((s) => {
-    if (s.message.status?.type !== "running") return false;
-    for (let index = startIndex; index <= endIndex; index++) {
-      if (s.message.parts[index]?.status.type === "running") return true;
-    }
-    return false;
-  });
-
+}: PropsWithChildren<{ running: boolean }>) {
   return (
-    <ReasoningRoot streaming={isReasoningStreaming}>
-      <ReasoningTrigger active={isReasoningStreaming} />
-      <ReasoningContent aria-busy={isReasoningStreaming}>
+    <ReasoningRoot streaming={running}>
+      <ReasoningTrigger active={running} />
+      <ReasoningContent aria-busy={running}>
         <ReasoningText>{children}</ReasoningText>
       </ReasoningContent>
     </ReasoningRoot>
   );
-};
+}
 
 const Reasoning = memo(
   ReasoningImpl,
@@ -97,16 +91,6 @@ Reasoning.Trigger = ReasoningTrigger;
 Reasoning.Content = ReasoningContent;
 Reasoning.Text = ReasoningText;
 Reasoning.Fade = ReasoningFade;
-
-/**
- * @deprecated This wrapper targets the legacy `components.ReasoningGroup`
- * prop on `<MessagePrimitive.Parts>`. Use `<MessagePrimitive.GroupedParts>`
- * with a `groupBy` returning `"group-reasoning"` and compose `ReasoningRoot`
- * / `ReasoningTrigger` / `ReasoningContent` / `ReasoningText` directly.
- * See `thread.aui.tsx` for an example.
- */
-const ReasoningGroup = memo(ReasoningGroupImpl);
-ReasoningGroup.displayName = "ReasoningGroup";
 
 export {
   Reasoning,

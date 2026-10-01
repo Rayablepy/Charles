@@ -43,17 +43,7 @@ export type ReasoningRootProps = Omit<
     open?: boolean;
     onOpenChange?: (open: boolean) => void;
     defaultOpen?: boolean;
-    /**
-     * Whether the reasoning is currently streaming. While `true` the
-     * disclosure is held open with a bottom-pinned live preview; when
-     * streaming ends it returns to `defaultOpen`, and the first manual
-     * toggle takes over the open/close state permanently. The live preview
-     * keeps following the newest tokens while the disclosure is open during
-     * streaming, even after a manual toggle, and pauses while the reader is
-     * scrolled up.
-     */
     streaming?: boolean;
-    /** Called right before the disclosure animates, on toggle and on streaming transitions. */
     onAnimationStart?: () => void;
   };
 
@@ -81,8 +71,6 @@ function ReasoningRoot({
   useLayoutEffect(() => {
     if (prevStreamingRef.current === streaming) return;
     prevStreamingRef.current = streaming;
-    // A streaming transition only animates the panel when the resting state
-    // is collapsed; with `defaultOpen` the disclosure stays open across it.
     if (!isControlled && userOpen === null && !initialOpen) {
       onAnimationStart?.();
     }
@@ -264,9 +252,6 @@ function ReasoningText({
       if (!pinned) return;
       scrollEl.scrollTop = scrollEl.scrollHeight;
     };
-    // A pin's own scroll event can arrive after new content grew the scroll
-    // height and read as "not at bottom"; only an upward move at unchanged
-    // scroll height is user intent.
     const onScroll = () => {
       if (isAtBottom()) {
         pinned = true;

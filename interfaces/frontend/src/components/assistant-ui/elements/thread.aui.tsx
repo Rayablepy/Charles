@@ -11,10 +11,7 @@ import { Image } from "@/components/assistant-ui/elements/image";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import {
   Reasoning,
-  ReasoningContent,
-  ReasoningRoot,
-  ReasoningText,
-  ReasoningTrigger,
+  ReasoningGroup,
 } from "@/components/assistant-ui/elements/reasoning.aui";
 import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import {
@@ -88,9 +85,6 @@ export type ThreadComponents = {
   Welcome?: ComponentType | undefined;
   ToolFallback?: ToolCallMessagePartComponent | undefined;
   ToolGroup?:
-    | ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>
-    | undefined;
-  ReasoningGroup?:
     | ComponentType<PropsWithChildren<{ group: ThreadGroupPart }>>
     | undefined;
   TaskGroup?: ComponentType<{ group: ThreadGroupPart }> | undefined;
@@ -455,7 +449,6 @@ const AssistantMessage: FC = () => {
   const {
     ToolFallback: ToolFallbackComponent = ToolFallback,
     ToolGroup,
-    ReasoningGroup,
     TaskGroup: TaskGroupComponent,
   } = useContext(ThreadComponentsContext);
   const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
@@ -497,19 +490,9 @@ const AssistantMessage: FC = () => {
                   </ToolGroupRoot>
                 );
               case "group-reasoning": {
-                if (ReasoningGroup) {
-                  return (
-                    <ReasoningGroup group={part}>{children}</ReasoningGroup>
-                  );
-                }
                 const running = part.status.type === "running";
                 return (
-                  <ReasoningRoot streaming={running}>
-                    <ReasoningTrigger active={running} />
-                    <ReasoningContent aria-busy={running}>
-                      <ReasoningText>{children}</ReasoningText>
-                    </ReasoningContent>
-                  </ReasoningRoot>
+                  <ReasoningGroup running={running}>{children}</ReasoningGroup>
                 );
               }
               case "text":
