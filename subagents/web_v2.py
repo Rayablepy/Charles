@@ -28,7 +28,14 @@ async def initialise_web_mcp():
 
     except Exception:
         WEB_TOOLS_STATUS=False
+        await close_web_toolsZ()
+async def get_web_tools():
+    if not WEB_TOOLS_STATUS or CLIENT_CTX_MANAGER is None:
         return []
-
+    try:
+        res = await CLIENT_CTX_MANAGER.list_tools()
+        return res
+    except Exception:
+        return []
 web_tools=asyncio.run(get_web_tools())
 print(web_tools)
