@@ -27,14 +27,7 @@ export default function ChatPage() {
         />
         <main className="app-main">
           <div className="app-thread">
-            <Thread
-              components={{
-                Welcome: AppWelcome,
-                ToolFallback: () => null,
-                ToolGroup: () => null,
-                TaskGroup: () => null,
-              }}
-            />
+            <Thread components={{ Welcome: AppWelcome }} />
           </div>
         </main>
       </ChatRuntimeProvider>

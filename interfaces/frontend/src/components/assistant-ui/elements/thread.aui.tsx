@@ -71,15 +71,6 @@ import {
 
 export type ThreadGroupPart = MessagePrimitive.GroupedParts.GroupPart;
 
-/**
- * Optional component overrides for the thread. `AssistantMessage` and
- * `Welcome` replace whole sections; the remaining slots override how the
- * assistant message renders tool calls and part groups. Tool UIs registered
- * by name (toolkit `render`, `useAssistantDataUI`) take precedence over
- * `ToolFallback`. When `TaskGroup` is set, tool calls that carry a nested
- * conversation and have no registered UI render through it instead of the
- * tool group; without it they render like any other tool call.
- */
 export type ThreadComponents = {
   AssistantMessage?: ComponentType | undefined;
   Welcome?: ComponentType | undefined;
@@ -130,13 +121,11 @@ const EMPTY_COMPONENTS: ThreadComponents = {};
 const ThreadComponentsContext =
   createContext<ThreadComponents>(EMPTY_COMPONENTS);
 
-// Startup exposes a loading placeholder thread; treat it as a new chat so
-// the composer mounts centered. Loads after startup keep the docked layout.
+
 const isNewChatView = (s: AssistantState) =>
   s.thread.messages.length === 0 &&
   (!s.thread.isLoading || s.threads.isLoading);
 
-// A switched thread that is still fetching its history: skeleton, not welcome.
 const isHistoryLoadingView = (s: AssistantState) =>
   s.thread.messages.length === 0 &&
   s.thread.isLoading &&
@@ -184,16 +173,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
   const { Welcome = ThreadWelcome } = useContext(ThreadComponentsContext);
 
   return (
-    <ThreadPrimitive.Root
-      className="aui-root aui-thread-root bg-background @container flex h-full flex-col"
-      style={{
-        ["--thread-max-width" as string]: "44rem",
-        ["--composer-bg" as string]:
-          "color-mix(in oklab, var(--color-muted) 30%, transparent)",
-        ["--composer-radius" as string]: "1rem",
-        ["--composer-padding" as string]: "8px",
-      }}
-    >
+    <ThreadPrimitive.Root className="aui-root aui-thread-root bg-background @container flex h-full flex-col">
       <ThreadPrimitive.Viewport
         turnAnchor="top"
         data-slot="aui_thread-viewport"
@@ -454,7 +434,6 @@ const AssistantMessage: FC = () => {
   const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
 
   const ACTION_BAR_PT = "pt-1.5";
-  // Keep the action bar inside the contained root's paint box, then cancel its reserved space in flow.
   const ACTION_BAR_HEIGHT = `min-h-7.5 ${ACTION_BAR_PT}`;
 
   return (
@@ -476,19 +455,21 @@ const AssistantMessage: FC = () => {
                 return TaskGroupComponent ? (
                   <TaskGroupComponent group={part} />
                 ) : null;
-              case "group-tool":
+              case "group-tool": {
+                const running = part.status.type === "running";
                 if (ToolGroup) {
                   return <ToolGroup group={part}>{children}</ToolGroup>;
                 }
                 return (
-                  <ToolGroupRoot variant="ghost">
+                  <ToolGroupRoot variant="ghost" running={running}>
                     <ToolGroupTrigger
                       count={part.indices.length}
-                      active={part.status.type === "running"}
+                      active={running}
                     />
                     <ToolGroupContent>{children}</ToolGroupContent>
                   </ToolGroupRoot>
                 );
+              }
               case "group-reasoning": {
                 const running = part.status.type === "running";
                 return (
@@ -589,8 +570,7 @@ const UserImagePart: ImageMessagePartComponent = (part) => (
   </div>
 );
 
-/*attached-file transcripts are hidden from the user message body but still
-reach the agent through the wire message*/
+// Attachment transcripts reach the agent but stay hidden here.
 const UserTextPart: TextMessagePartComponent = ({ text }) => {
   if (isAttachmentTranscript(text)) return null;
   return <MarkdownText text={text} />;

@@ -4,7 +4,6 @@ import {
   memo,
   useCallback,
   useRef,
-  useState,
   type PropsWithChildren,
 } from "react";
 import {
@@ -65,14 +64,8 @@ function ReasoningGroup({
   running,
   children,
 }: PropsWithChildren<{ running: boolean }>) {
-  const [open, setOpen] = useState(false);
   return (
-    <ReasoningRoot
-      variant="ghost"
-      open={open}
-      onOpenChange={setOpen}
-      streaming={running}
-    >
+    <ReasoningRoot variant="ghost" streaming={running}>
       <ReasoningTrigger active={running} />
       <ReasoningContent aria-busy={running}>
         <ReasoningText>{children}</ReasoningText>

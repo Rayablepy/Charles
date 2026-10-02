@@ -263,6 +263,7 @@
 
   .app-memory-progress-fill {
     @apply h-full rounded-full bg-foreground transition-[width] duration-200 motion-reduce:transition-none;
+    width: var(--upload-progress);
   }
 
   .app-memory-note {
@@ -290,5 +291,23 @@
   .app-welcome-title {
     @apply mt-3 font-heading text-4xl font-extrabold text-foreground;
     font-variation-settings: 'wght' 900, 'ROND' 100;
+  }
+
+  .aui-thread-root {
+    --thread-max-width: 44rem;
+    --composer-bg: color-mix(in oklab, var(--color-muted) 30%, transparent);
+    --composer-radius: 1rem;
+    --composer-padding: 8px;
+  }
+
+  .aui-reasoning-root,
+  .aui-tool-fallback-root,
+  .aui-tool-group-root {
+    --animation-duration: 200ms;
+  }
+
+  .aui-thread-followup-suggestions {
+    mask-image: var(--followup-mask);
+    -webkit-mask-image: var(--followup-mask);
   }
 }

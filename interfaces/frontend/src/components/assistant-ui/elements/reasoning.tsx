@@ -97,11 +97,6 @@ function ReasoningRoot({
         "group/reasoning-root",
         reasoningVariants({ variant, className }),
       )}
-      style={
-        {
-          "--animation-duration": `${ANIMATION_DURATION}ms`,
-        } as React.CSSProperties
-      }
       {...props}
     >
       <ReasoningPreviewContext.Provider value={isPreview}>

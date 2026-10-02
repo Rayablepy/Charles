@@ -111,7 +111,7 @@ function getDataUrlSize(data: string): number {
     return getBase64PayloadSize(payload);
   }
 
-  // Each percent escape is one byte, including octets that are not valid UTF-8.
+  // Each percent escape is one byte.
   return new TextEncoder().encode(payload.replace(/%[\da-f]{2}/gi, "_"))
     .byteLength;
 }

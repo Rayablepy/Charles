@@ -81,7 +81,7 @@ const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const POLL_INTERVAL_MS = 500;
 const POLL_TIMEOUT_MS = 60_000;
 
-/*upload part of the bar, index part fills the rest*/
+/*upload fills the bar; indexing fills the rest*/
 const UPLOAD_PROGRESS_MAX = 0.7;
 const INDEX_PROGRESS_INGESTING = 0.85;
 const INDEX_PROGRESS_INDEXED = 1;
@@ -113,7 +113,7 @@ type UploadResult = { jobId: string; source: string };
 
 type TranscribeResult = { source: string; text: string };
 
-/*POST the file via XHR so byte-level upload progress can be reported*/
+/*POST via XHR for byte-level progress*/
 function postUpload(
   file: File,
   onProgress:(fraction: number) => void,
@@ -154,7 +154,7 @@ function postUpload(
   });
 }
 
-/*upload the file, poll the ingest job, report progress 0..1 as it goes*/
+/*upload, then poll ingest job until done*/
 export async function uploadToMemory(
   file: File,
   onProgress?: (fraction: number) => void,
@@ -198,7 +198,7 @@ export async function uploadToMemory(
   throw wrapError(file.name, "indexing timed out");
 }
 
-/*send the file to the transcribe endpoint and return its text content*/
+/*send to transcribe endpoint, return text*/
 export async function transcribeFile(
   file: File,
   onProgress?: (fraction: number) => void,

@@ -70,7 +70,9 @@ export function MemoryUpload() {
           >
             <div
               className="app-memory-progress-fill"
-              style={{ width: `${Math.round(state.fraction * 100)}%` }}
+              style={{
+                ["--upload-progress" as string]: `${Math.round(state.fraction * 100)}%`,
+              }}
             />
           </div>
         )}

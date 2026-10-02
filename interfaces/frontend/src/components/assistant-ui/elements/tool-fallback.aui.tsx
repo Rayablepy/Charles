@@ -77,11 +77,6 @@ function ToolFallbackRoot({
         "aui-tool-fallback-root group/tool-fallback-root w-full",
         className,
       )}
-      style={
-        {
-          "--animation-duration": `${ANIMATION_DURATION}ms`,
-        } as React.CSSProperties
-      }
       {...props}
     >
       {children}
@@ -341,11 +336,6 @@ const approvalOptionLabel = (option: ToolApprovalOption) =>
     : undefined) ??
   option.id;
 
-/**
- * A request that declares how it wants to be presented is asking a question,
- * not gating an action, so a refusal is not one of the answers it accepts
- * unless the request declares itself dismissible.
- */
 const isQuestion = (approval: ToolCallMessagePart["approval"]) =>
   approval?.display === "select" || approval?.display === "text";
 
@@ -393,17 +383,11 @@ function ToolFallbackApproval({
 
   if (!offersInterruptAction(status, approval, interrupt)) return null;
 
-  // A declared option list is a host constraint: the kit never adds an
-  // approval path beyond it, and preserves a refusal path only where the
-  // request is an action the user may refuse.
   const declaredOptions = respondToApproval ? approval?.options : undefined;
   const acceptsText =
     approval != null &&
     respondToApproval != null &&
     toolApprovalAcceptsText(approval);
-
-  // A refused response leaves the request open, so the controls come back
-  // rather than staying spent on a decision the runtime never recorded.
   const submit = (send: () => Promise<void> | void) => {
     setSubmitted(true);
     setError(null);
@@ -442,9 +426,7 @@ function ToolFallbackApproval({
   const respondWithOption = (option: ToolApprovalOption) => {
     if (locked) return;
     setConfirmingId(null);
-    // A custom kind has no decision class for the runtime to derive, and
-    // responding without one throws; picking a declared option is an answer,
-    // so it resolves as approved.
+    // Unknown kinds have no decision class; treat as approved.
     submit(() =>
       respondToApproval?.(
         isKnownKind(option.kind)
@@ -456,14 +438,13 @@ function ToolFallbackApproval({
 
   const typedNote = () => (answer.trim() ? { text: answer } : {});
 
-  // The kit does not validate an answer the request never constrained: a host
-  // that cannot record an empty one rejects it, which reopens the controls.
+  // Empty answers are unvalidated; hosts may reject them.
   const submitAnswer = () => {
     if (locked) return;
     submit(() => respondToApproval?.({ text: answer }));
   };
 
-  // A dismissal is no answer at all, so a typed draft does not travel with it.
+  // Dismissal carries no typed draft.
   const dismiss = () => {
     if (locked) return;
     submit(() => respondToApproval?.({ approved: false }));
@@ -649,8 +630,7 @@ function ToolFallbackApproval({
     );
   }
 
-  // A question carries no decision to fabricate, so it renders only what the
-  // request declared, even when that leaves nothing to act on here.
+  // Questions render only what the request declared.
   if (question) {
     return (
       <div
