@@ -1,6 +1,12 @@
 "use client";
 
-import { memo, useCallback, useRef, type PropsWithChildren } from "react";
+import {
+  memo,
+  useCallback,
+  useRef,
+  useState,
+  type PropsWithChildren,
+} from "react";
 import {
   useScrollLock,
   type ReasoningMessagePartComponent,
@@ -19,7 +25,6 @@ import {
 
 export type { ReasoningRootProps } from "./reasoning";
 
-/** `ReasoningRoot` with the thread viewport scroll locked during disclosure animations. */
 function ReasoningRoot({
   ref,
   onAnimationStart,
@@ -56,17 +61,18 @@ function ReasoningRoot({
 
 const ReasoningImpl: ReasoningMessagePartComponent = () => <MarkdownText />;
 
-/**
- * Collapsible container for a `"group-reasoning"` group produced by
- * `MessagePrimitive.GroupedParts`. Renders the accumulated reasoning parts as
- * the disclosure body and auto-expands while `running`.
- */
 function ReasoningGroup({
   running,
   children,
 }: PropsWithChildren<{ running: boolean }>) {
+  const [open, setOpen] = useState(false);
   return (
-    <ReasoningRoot streaming={running}>
+    <ReasoningRoot
+      variant="ghost"
+      open={open}
+      onOpenChange={setOpen}
+      streaming={running}
+    >
       <ReasoningTrigger active={running} />
       <ReasoningContent aria-busy={running}>
         <ReasoningText>{children}</ReasoningText>
