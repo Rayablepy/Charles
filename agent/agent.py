@@ -4,7 +4,7 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from tools.tools import tool_list
 from config.settings import DB_PATH, ENABLED_TOOLS, PROJECT_ROOT, MAIN_MODEL, ENABLED_SUBAGENTS
 from agent.system_prompt import build_system_prompt
-from subagents.web import web_agent
+from subagents.web_v2 import build_web_agent
 from deepagents import create_deep_agent
 from deepagents.backends import FilesystemBackend, CompositeBackend, StateBackend, StoreBackend
 from langgraph.store.sqlite.aio import AsyncSqliteStore
@@ -22,6 +22,7 @@ class DeepAgent:
         self.checkpointer = None
         self.store = None
         self.agent = None
+        self.subagents = []
 
     async def build(self):
         if self.agent is not None:
@@ -36,15 +37,18 @@ class DeepAgent:
             self.store_cm = AsyncSqliteStore.from_conn_string(DB_PATH)
             self.store = await self.store_cm.__aenter__()
             await self.store.setup()
+            web_agent = await build_web_agent()
+            self.subagents.append(web_agent) if web_agent is not None else None
             self.agent = await asyncio.to_thread(
                 construct_agent,
                 tool_list,
                 self.store,
                 self.checkpointer,
+                self.subagents
             )
         return self.agent
 
-def construct_agent(tools, store, checkpointer):
+def construct_agent(tools, store, checkpointer, subagents):
     backend = CompositeBackend(
         default=StateBackend(),
         routes={
@@ -63,7 +67,7 @@ def construct_agent(tools, store, checkpointer):
         backend=backend,
         store=store,
         checkpointer=checkpointer,
-        subagents=[web_agent] if web_agent is not None else None,
+        subagents=subagents
     )
 
 deep_agent = DeepAgent()
