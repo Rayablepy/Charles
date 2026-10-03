@@ -11,7 +11,7 @@ load_dotenv()
 ENABLED_TOOLS: list[str] = [
     "rag",
     "todo/notes",
-    "calendar",
+    "conn_check",
 ]
 ENABLED_SUBAGENTS: list[str] = [
     "web_agent"

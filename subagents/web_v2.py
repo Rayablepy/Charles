@@ -1,13 +1,15 @@
 
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from fastmcp.client.transports.stdio import StdioTransport
 from langchain.agents import create_agent
 from langchain.mcp import MCPAdapter
 from deepagents import CompiledSubAgent
 from config.settings import LOCAL_MODEL, MAIN_MODEL
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 WEB_TOOLS_STATUS = None
 web_tools: list = []
@@ -16,22 +18,25 @@ web_tools: list = []
 async def ensure_web_mcp():
     global WEB_TOOLS_STATUS, web_tools
     if WEB_TOOLS_STATUS is True:
-        return
+        return True
     try:
         transport = StdioTransport(
             command="uvx",
             args=["--from", "browser-use[cli]", "browser-use", "--mcp"],
+            env={**os.environ, "BROWSER_USE_HEADLESS": "true"},
         )
         adapter = MCPAdapter(transport)
         loaded = await adapter.list_tools()
         if not loaded:
             WEB_TOOLS_STATUS = False
-            return
+            return False
         web_tools = loaded
         WEB_TOOLS_STATUS = True
+        return True
     except Exception as error:
         print(f"web mcp init failed: {error}")
         WEB_TOOLS_STATUS = False
+        return False
 
 
 async def build_web_agent():
