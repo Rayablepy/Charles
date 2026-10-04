@@ -10,7 +10,6 @@ from langchain.agents import create_agent
 from langchain.mcp import MCPAdapter
 from deepagents import CompiledSubAgent
 from config.settings import LOCAL_MODEL, MAIN_MODEL
-
 WEB_TOOLS_STATUS = None
 web_tools: list = []
 
@@ -58,3 +57,4 @@ async def build_web_agent():
         description="Handles any web related tasks the user requires. Ensure instructions are clear and precise. Returns results of its work.",
         runnable=web_graph,
     )
+

@@ -101,7 +101,7 @@ def web(backend_port, ingest_port, vite_port, backend_wait, no_open):
         "langgraph backend",
         ROOT,
         [PYTHON, str(LANGGRAPH), "dev", "--host", "127.0.0.1",
-         "--port", str(backend_port), "--no-browser"],
+         "--port", str(backend_port), "--no-browser", "--allow-blocking"],
         backend_port,
     )
     if backend:

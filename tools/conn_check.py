@@ -25,9 +25,9 @@ async def check_subagent_status()->dict[str,bool]:
         dict[str,bool]: The subagents available to you.`"""
     web_status = await ensure_web_mcp()
     if web_status:
-        subagent_status = {"Web_agent": True}
+        subagent_status = {"web_agent": True}
     else:
-        subagent_status = {"Web_agent": False}
+        subagent_status = {"web_agent": False}
     return subagent_status
 
 check_tool_list=[check_tool_status,check_subagent_status]

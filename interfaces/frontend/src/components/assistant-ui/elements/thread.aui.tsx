@@ -462,10 +462,7 @@ const AssistantMessage: FC = () => {
                 }
                 return (
                   <ToolGroupRoot variant="ghost" running={running}>
-                    <ToolGroupTrigger
-                      count={part.indices.length}
-                      active={running}
-                    />
+                    <ToolGroupTrigger active={running} />
                     <ToolGroupContent>{children}</ToolGroupContent>
                   </ToolGroupRoot>
                 );
