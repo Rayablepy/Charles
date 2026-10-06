@@ -54,7 +54,7 @@ def construct_agent(tools, store, checkpointer, subagents):
         routes={
             "/longtermmemories/": StoreBackend(
                 store=store,
-                namespace=lambda op: ("localAgent", "longterm"),
+                namespace=lambda op: ("Charles", "longterm"),
             ),
             "/project/": FilesystemBackend(root_dir=PROJECT_ROOT, virtual_mode=True),
         },
@@ -62,7 +62,7 @@ def construct_agent(tools, store, checkpointer, subagents):
     return create_deep_agent(
         model=MAIN_MODEL,
         system_prompt=build_system_prompt(ENABLED_TOOLS, ENABLED_SUBAGENTS),
-        memory=["/longtermmemories/AGENTS.md"],
+        memory=["/longtermmemories/AGENTS.md","/longtermmemories/USERINFO.md","/longtermmemories/SYSTEM_PROMPT.md"],
         tools=tools,
         backend=backend,
         store=store,

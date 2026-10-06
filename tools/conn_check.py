@@ -13,7 +13,15 @@ def check_tool_status()->dict[str,bool]:
     "rag": True,
     "filesystem": True,
     "todo/notes": True,
-}
+    #Include tools provided by langchain middleware
+    "ls": True,
+    "read_file": True,
+    "write_file": True,
+    "edit_file": True,
+    "glob": True,
+    "grep": True,
+    "write_todos": True
+    }
     return tool_status
 
 @tool
