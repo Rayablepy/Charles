@@ -11,6 +11,7 @@ import {
 import { LANGGRAPH_ASSISTANT_ID, langgraphClient } from "@/lib/langgraph";
 import { createLangGraphThreadListAdapter } from "@/lib/langgraph-thread-list";
 import { RagUploadAttachmentAdapter } from "@/lib/langgraph-attachments";
+import { resolveForkCheckpoint } from "@/lib/langgraph-checkpoints";
 import {
   withReasoningEvents,
   withReasoningInMessages,
@@ -53,6 +54,8 @@ export function ChatRuntimeProvider({
     onThreadIdChange,
     stream,
     adapters: { attachments: attachmentsAdapter },
+    getCheckpointId: (threadId, parentMessages) =>
+      resolveForkCheckpoint(langgraphClient, threadId, parentMessages),
     load: async (externalId) => {
       try {
         const state = await langgraphClient.threads.getState(externalId);
