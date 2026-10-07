@@ -7,16 +7,6 @@ from langchain_openrouter import ChatOpenRouter
 
 load_dotenv()
 
-#tool list that agent will have access to, update when tools are added or removed
-ENABLED_TOOLS: list[str] = [
-    "rag",
-    "todo/notes",
-    "conn_check",
-]
-ENABLED_SUBAGENTS: list[str] = [
-    "web_agent"
-]
-
 #Model constants
 CHAT_MODEL_NAME=os.getenv("CHAT_MODEL_NAME")
 OPENROUTER_CHAT_MODEL_NAME="openrouter/free"
