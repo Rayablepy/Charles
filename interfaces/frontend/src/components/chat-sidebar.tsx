@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useAuiState } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
@@ -29,16 +29,22 @@ export function ChatSidebar({
     string | undefined
   >(undefined);
 
+  const reloadSeq = useRef(0);
+
   const reloadChats = useCallback(() => {
+    const seq = ++reloadSeq.current;
     let cancelled = false;
     listChats()
       .then((next) => {
         if (cancelled) return;
+        if (seq !== reloadSeq.current) return;
         setChats(next);
         setLoaded(true);
       })
       .catch(() => {
-        if (!cancelled) setLoaded(true);
+        if (!cancelled) {
+          if (seq === reloadSeq.current) setLoaded(true);
+        }
       });
     return () => {
       cancelled = true;
