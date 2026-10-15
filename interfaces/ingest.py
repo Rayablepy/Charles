@@ -6,13 +6,16 @@ import tempfile
 import threading
 import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from http import HTTPStatus
+from pathlib import Path
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from config.settings import PROJECT_ROOT
 from memory.vectorstore import ingest_file, read_data, sanitize_name
 
 HOST = os.getenv("INGEST_API_HOST", "127.0.0.1")
@@ -21,6 +24,8 @@ MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 TRANSCRIBE_MAX_CHARS = 100_000
 STAGING_PREFIX = "rag-upload-"
 TERMINAL = {"indexed", "already-indexed", "failed"}
+PROJECT_FILE_MAX_BYTES = 512 * 1024
+PROJECT_FILE_LIST_LIMIT = 5000
 
 JOBS: dict[str, dict] = {}
 QUEUE: queue.Queue[str] = queue.Queue()
@@ -192,6 +197,72 @@ async def job_status(job_id: str) -> dict:
     if job.get("error"):
         payload["error"] = job["error"]
     return payload
+
+
+def resolve_project_path(raw: str) -> Path:
+    root = PROJECT_ROOT.resolve()
+    relative = (raw or "").replace("\\", "/").strip("/")
+    candidate = (root / relative).resolve()
+    if candidate != root and not candidate.is_relative_to(root):
+        raise HTTPException(status_code=400, detail="path escapes the project directory")
+    return candidate
+
+
+@app.get("/project/files")
+async def project_files() -> dict:
+    root = PROJECT_ROOT / "project"
+    root.mkdir(parents=True, exist_ok=True)
+    root = root.resolve()
+    files: list[dict] = []
+    truncated = False
+    for dirpath, dirnames, filenames in os.walk(root):
+        dirnames.sort()
+        for name in sorted(filenames):
+            full = Path(dirpath) / name
+            try:
+                stat = full.stat()
+            except OSError:
+                continue
+            files.append(
+                {
+                    "path": full.relative_to(root).as_posix(),
+                    "name": name,
+                    "size": stat.st_size,
+                    "modified": datetime.fromtimestamp(
+                        stat.st_mtime, tz=timezone.utc
+                    ).isoformat(),
+                }
+            )
+            if len(files) >= PROJECT_FILE_LIST_LIMIT:
+                truncated = True
+                break
+        if truncated:
+            break
+    files.sort(key=lambda item: item["path"].lower())
+    return {"root": str(root), "truncated": truncated, "files": files}
+
+
+@app.get("/project/file")
+async def project_file(path: str = Query(...)) -> dict:
+    target = resolve_project_path(path)
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="file not found")
+    try:
+        stat = target.stat()
+        with open(target, "rb") as handle:
+            data = handle.read(PROJECT_FILE_MAX_BYTES)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail="failed to read file") from exc
+    binary = b"\x00" in data
+    root = PROJECT_ROOT.resolve()
+    return {
+        "path": target.relative_to(root).as_posix(),
+        "name": target.name,
+        "size": stat.st_size,
+        "binary": binary,
+        "truncated": stat.st_size > len(data),
+        "text": "" if binary else data.decode("utf-8", errors="replace"),
+    }
 
 
 if __name__ == "__main__":
