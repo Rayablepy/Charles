@@ -4,14 +4,17 @@ import { useState } from "react";
 import { ChatRuntimeProvider } from "@/components/chat-runtime";
 import { ChatSidebar } from "@/components/chat-sidebar";
 import { AppWelcome } from "@/components/app-welcome";
+import { ProjectFiles } from "@/components/project-files";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function ChatPage() {
   const [selectedThreadId, setSelectedThreadId] = useState<
     string | undefined
   >(undefined);
+  const [showProjectFiles, setShowProjectFiles] = useState(false);
 
   const handleSelectThread = (threadId: string | undefined) => {
+    setShowProjectFiles(false);
     setSelectedThreadId(threadId);
   };
 
@@ -24,11 +27,17 @@ export default function ChatPage() {
         <ChatSidebar
           activeThreadId={selectedThreadId}
           onSelect={handleSelectThread}
+          showProjectFiles={showProjectFiles}
+          onOpenProjectFiles={() => setShowProjectFiles(true)}
         />
         <main className="app-main">
-          <div className="app-thread">
-            <Thread components={{ Welcome: AppWelcome }} />
-          </div>
+          {showProjectFiles ? (
+            <ProjectFiles />
+          ) : (
+            <div className="app-thread">
+              <Thread components={{ Welcome: AppWelcome }} />
+            </div>
+          )}
         </main>
       </ChatRuntimeProvider>
     </div>

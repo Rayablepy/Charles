@@ -245,6 +245,76 @@
     @apply px-3 py-2 text-sm text-muted-foreground;
   }
 
+  .app-nav-item {
+    @apply flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground;
+  }
+
+  .app-nav-item-active {
+    @apply bg-accent text-foreground;
+  }
+
+  .app-files {
+    @apply flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-6;
+  }
+
+  .app-files-header {
+    @apply shrink-0;
+  }
+
+  .app-files-title {
+    @apply font-heading text-2xl font-extrabold;
+    font-variation-settings: 'wght' 900, 'ROND' 100;
+  }
+
+  .app-files-note {
+    @apply text-sm text-muted-foreground;
+  }
+
+  .app-files-note-error {
+    @apply text-destructive;
+  }
+
+  .app-files-grid {
+    @apply grid gap-3;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  }
+
+  .app-file-card {
+    @apply flex min-w-0 flex-col gap-1 rounded-lg border bg-card p-3 text-start text-sm transition-colors hover:border-ring hover:bg-accent;
+  }
+
+  .app-file-card-icon {
+    @apply text-muted-foreground;
+  }
+
+  .app-file-card-name {
+    @apply truncate font-medium text-foreground;
+  }
+
+  .app-file-card-meta {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .app-file-viewer {
+    @apply max-w-3xl sm:max-w-3xl;
+  }
+
+  .app-file-viewer-title {
+    @apply truncate;
+  }
+
+  .app-file-viewer-path {
+    @apply font-mono text-xs text-muted-foreground;
+  }
+
+  .app-file-viewer-note {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .app-file-viewer-pre {
+    @apply max-h-[60vh] overflow-auto rounded-md border bg-muted/40 p-3 font-mono text-xs whitespace-pre-wrap break-words;
+  }
+
   .app-memory {
     @apply flex shrink-0 flex-col gap-2 border-t p-3;
   }
