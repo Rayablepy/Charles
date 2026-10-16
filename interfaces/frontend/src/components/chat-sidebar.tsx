@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import { FolderIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
 import { useAuiState } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -16,9 +16,13 @@ import {
 export function ChatSidebar({
   activeThreadId,
   onSelect,
+  showProjectFiles,
+  onOpenProjectFiles,
 }: {
   activeThreadId?: string | undefined;
   onSelect: (threadId: string | undefined) => void;
+  showProjectFiles: boolean;
+  onOpenProjectFiles: () => void;
 }) {
   const messagesCount = useAuiState((s) => s.thread.messages.length);
   const [chats, setChats] = useState<ChatSummary[]>([]);
@@ -91,6 +95,18 @@ export function ChatSidebar({
         >
           <PlusIcon className="size-4" />
           <span>New chat</span>
+        </button>
+        <button
+          type="button"
+          className={cn(
+            "app-nav-item",
+            showProjectFiles && "app-nav-item-active",
+          )}
+          onClick={onOpenProjectFiles}
+          aria-current={showProjectFiles ? "true" : undefined}
+        >
+          <FolderIcon className="size-4" />
+          <span>Project Files</span>
         </button>
 <div className="app-chat-scroll">
           {!loaded ? (
