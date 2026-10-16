@@ -254,7 +254,8 @@ async def project_file(path: str = Query(...)) -> dict:
     except OSError as exc:
         raise HTTPException(status_code=500, detail="failed to read file") from exc
     binary = b"\x00" in data
-    root = PROJECT_ROOT.resolve()
+    root = PROJECT_ROOT / "project"
+    root = root.resolve()
     return {
         "path": target.relative_to(root).as_posix(),
         "name": target.name,
