@@ -78,7 +78,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
     ],
-    allow_methods=["POST", "GET", "OPTIONS"],
+    allow_methods=["POST", "GET", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -199,8 +199,14 @@ async def job_status(job_id: str) -> dict:
     return payload
 
 
+def project_dir() -> Path:
+    root = (PROJECT_ROOT / "project").resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    return root
+
+
 def resolve_project_path(raw: str) -> Path:
-    root = PROJECT_ROOT.resolve()
+    root = project_dir()
     relative = (raw or "").replace("\\", "/").strip("/")
     candidate = (root / relative).resolve()
     if candidate != root and not candidate.is_relative_to(root):
@@ -208,11 +214,20 @@ def resolve_project_path(raw: str) -> Path:
     return candidate
 
 
+def validate_file_name(name: str) -> str:
+    clean = (name or "").strip()
+    if not clean or clean in {".", ".."}:
+        raise HTTPException(status_code=400, detail="invalid file name")
+    if any(char in '<>:"/\\|?*' or ord(char) < 32 for char in clean):
+        raise HTTPException(status_code=400, detail="file name has invalid characters")
+    if clean.rstrip(". ") != clean:
+        raise HTTPException(status_code=400, detail="file name cannot end with a dot or space")
+    return clean
+
+
 @app.get("/project/files")
 async def project_files() -> dict:
-    root = PROJECT_ROOT / "project"
-    root.mkdir(parents=True, exist_ok=True)
-    root = root.resolve()
+    root = project_dir()
     files: list[dict] = []
     truncated = False
     for dirpath, dirnames, filenames in os.walk(root):
@@ -231,6 +246,7 @@ async def project_files() -> dict:
                     "modified": datetime.fromtimestamp(
                         stat.st_mtime, tz=timezone.utc
                     ).isoformat(),
+                    "full_path": str(full),
                 }
             )
             if len(files) >= PROJECT_FILE_LIST_LIMIT:
@@ -254,8 +270,7 @@ async def project_file(path: str = Query(...)) -> dict:
     except OSError as exc:
         raise HTTPException(status_code=500, detail="failed to read file") from exc
     binary = b"\x00" in data
-    root = PROJECT_ROOT / "project"
-    root = root.resolve()
+    root = project_dir()
     return {
         "path": target.relative_to(root).as_posix(),
         "name": target.name,
@@ -264,6 +279,48 @@ async def project_file(path: str = Query(...)) -> dict:
         "truncated": stat.st_size > len(data),
         "text": "" if binary else data.decode("utf-8", errors="replace"),
     }
+
+
+@app.post("/project/file/rename")
+async def rename_project_file(path: str = Query(...), name: str = Query(...)) -> dict:
+    root = project_dir()
+    target = resolve_project_path(path)
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="file not found")
+    new_name = validate_file_name(name)
+    destination = (target.parent / new_name).resolve()
+    if destination != root and not destination.is_relative_to(root):
+        raise HTTPException(status_code=400, detail="path escapes the project directory")
+    if destination == target:
+        return {
+            "ok": True,
+            "path": target.relative_to(root).as_posix(),
+            "name": target.name,
+        }
+    if destination.exists():
+        raise HTTPException(status_code=409, detail=f'"{new_name}" already exists')
+    try:
+        target.rename(destination)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail="failed to rename file") from exc
+    return {
+        "ok": True,
+        "path": destination.relative_to(root).as_posix(),
+        "name": destination.name,
+    }
+
+
+@app.delete("/project/file")
+async def delete_project_file(path: str = Query(...)) -> dict:
+    root = project_dir()
+    target = resolve_project_path(path)
+    if not target.is_file():
+        raise HTTPException(status_code=404, detail="file not found")
+    try:
+        target.unlink()
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail="failed to delete file") from exc
+    return {"ok": True, "path": target.relative_to(root).as_posix()}
 
 
 if __name__ == "__main__":
