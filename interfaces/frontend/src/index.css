@@ -99,6 +99,10 @@
     --sidebar-accent-foreground: oklch(0.205 0 0);
     --sidebar-border: oklch(0.922 0 0);
     --sidebar-ring: oklch(0.708 0 0);
+    --app-sidebar-width: 16rem;
+    --app-main-width: calc(100vw - var(--app-sidebar-width));
+    --app-file-viewer-width: calc(var(--app-main-width) * 0.78);
+    --app-file-viewer-height: 80vh;
 }
 
 .dark {
@@ -161,7 +165,8 @@
   }
 
   .app-sidebar {
-    @apply flex w-64 shrink-0 flex-col border-r bg-muted/40;
+    @apply flex shrink-0 flex-col border-r bg-muted/40;
+    width: var(--app-sidebar-width);
   }
 
   .app-sidebar-header {
@@ -366,7 +371,7 @@
   }
 
   .app-file-viewer {
-    @apply max-w-3xl sm:max-w-3xl;
+    @apply left-[calc(var(--app-sidebar-width)+var(--app-main-width)/2)]! flex! flex-col! h-[var(--app-file-viewer-height)]! w-[var(--app-file-viewer-width)]! max-w-none!;
   }
 
   .app-file-viewer-title {
@@ -382,11 +387,11 @@
   }
 
   .app-file-viewer-pre {
-    @apply max-h-[60vh] overflow-auto rounded-md border bg-muted/40 p-3 font-mono text-xs whitespace-pre-wrap break-words;
+    @apply min-h-0 flex-1 overflow-auto rounded-md border bg-muted/40 p-3 font-mono text-xs whitespace-pre-wrap break-words;
   }
 
   .app-file-viewer-markdown {
-    @apply max-h-[60vh] overflow-auto rounded-md border p-4 text-sm;
+    @apply min-h-0 flex-1 overflow-auto rounded-md border p-4 text-sm;
   }
 
   .app-memory {
