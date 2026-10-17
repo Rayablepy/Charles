@@ -19,6 +19,7 @@ import { cn } from "@/lib/utils";
 
 type MarkdownTextProps = Partial<TextMessagePartProps> & {
   components?: Parameters<typeof memoizeMarkdownComponents>[0];
+  smooth?: boolean;
 };
 
 const useShallowStable = <T extends Record<string, unknown> | undefined>(
@@ -37,7 +38,7 @@ const useShallowStable = <T extends Record<string, unknown> | undefined>(
   return ref.current;
 };
 
-const MarkdownTextImpl: FC<MarkdownTextProps> = ({ components }) => {
+const MarkdownTextImpl: FC<MarkdownTextProps> = ({ components, smooth }) => {
   const stableComponents = useShallowStable(components);
   const markdownComponents = useMemo(() => {
     if (!stableComponents) return defaultComponents;
@@ -52,6 +53,7 @@ const MarkdownTextImpl: FC<MarkdownTextProps> = ({ components }) => {
       remarkPlugins={[remarkGfm]}
       className="aui-md"
       components={markdownComponents}
+      smooth={smooth}
       defer
     />
   );

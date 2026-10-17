@@ -22,6 +22,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { MarkdownContent } from "@/components/assistant-ui/elements/markdown-content";
 import {
   deleteProjectFile,
   listProjectFiles,
@@ -55,6 +56,13 @@ function joinName(stem: string, extension: string): string {
   if (!extension) return stem;
   if (stem.toLowerCase().endsWith(extension.toLowerCase())) return stem;
   return `${stem}${extension}`;
+}
+
+const MARKDOWN_EXTENSIONS = [".md", ".markdown"];
+
+function isMarkdownName(name: string): boolean {
+  const { extension } = splitName(name);
+  return MARKDOWN_EXTENSIONS.includes(extension.toLowerCase());
 }
 
 function errorMessage(err: unknown): string {
@@ -271,7 +279,13 @@ export function ProjectFiles() {
                   Preview truncated to the first {formatSize(selected.size)}.
                 </p>
               )}
-              <pre className="app-file-viewer-pre">{selected?.text}</pre>
+              {selected && isMarkdownName(selected.name) ? (
+                <div className="app-file-viewer-markdown">
+                  <MarkdownContent text={selected.text} />
+                </div>
+              ) : (
+                <pre className="app-file-viewer-pre">{selected?.text}</pre>
+              )}
             </>
           )}
         </DialogContent>
