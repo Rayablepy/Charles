@@ -341,8 +341,16 @@
     @apply flex justify-end gap-2 pt-1;
   }
 
+  .app-file-rename-field {
+    @apply flex w-full items-center gap-0.5 rounded-md border bg-background px-3 py-2 text-sm focus-within:border-ring;
+  }
+
   .app-file-rename-input {
-    @apply w-full rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-ring;
+    @apply min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-foreground outline-none;
+  }
+
+  .app-file-rename-extension {
+    @apply shrink-0 text-sm text-muted-foreground select-none;
   }
 
   .app-dialog-btn {

@@ -288,6 +288,9 @@ async def rename_project_file(path: str = Query(...), name: str = Query(...)) ->
     if not target.is_file():
         raise HTTPException(status_code=404, detail="file not found")
     new_name = validate_file_name(name)
+    # A present extension stays fixed so parsing cannot break
+    if target.suffix and Path(new_name).suffix.lower() != target.suffix.lower():
+        raise HTTPException(status_code=400, detail="file extension cannot be changed")
     destination = (target.parent / new_name).resolve()
     if destination != root and not destination.is_relative_to(root):
         raise HTTPException(status_code=400, detail="path escapes the project directory")

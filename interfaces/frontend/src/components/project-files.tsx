@@ -45,6 +45,18 @@ function formatEdited(iso: string): string {
   return `Edited ${day} ${month} ${date.getFullYear()}`;
 }
 
+function splitName(name: string): { stem: string; extension: string } {
+  const dot = name.lastIndexOf(".");
+  if (dot <= 0) return { stem: name, extension: "" };
+  return { stem: name.slice(0, dot), extension: name.slice(dot) };
+}
+
+function joinName(stem: string, extension: string): string {
+  if (!extension) return stem;
+  if (stem.toLowerCase().endsWith(extension.toLowerCase())) return stem;
+  return `${stem}${extension}`;
+}
+
 function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
@@ -110,7 +122,7 @@ export function ProjectFiles() {
 
   const startRename = (file: ProjectFile) => {
     setRenameTarget(file);
-    setRenameDraft(file.name);
+    setRenameDraft(splitName(file.name).stem);
     setRenameError("");
   };
 
@@ -122,8 +134,10 @@ export function ProjectFiles() {
   const submitRename = async () => {
     const target = renameTarget;
     if (!target) return;
-    const name = renameDraft.trim();
-    if (!name || name === target.name) {
+    const stem = renameDraft.trim();
+    if (!stem) return;
+    const name = joinName(stem, splitName(target.name).extension);
+    if (name === target.name) {
       closeRename();
       return;
     }
@@ -160,6 +174,10 @@ export function ProjectFiles() {
       setDeleteBusy(false);
     }
   };
+
+  const renameExtension = renameTarget
+    ? splitName(renameTarget.name).extension
+    : "";
 
   return (
     <div className="app-files">
@@ -278,16 +296,23 @@ export function ProjectFiles() {
               void submitRename();
             }}
           >
-            <input
-              autoFocus
-              className="app-file-rename-input"
-              value={renameDraft}
-              onChange={(event) => {
-                setRenameDraft(event.target.value);
-                setRenameError("");
-              }}
-              aria-label="New file name"
-            />
+            <div className="app-file-rename-field">
+              <input
+                autoFocus
+                className="app-file-rename-input"
+                value={renameDraft}
+                onChange={(event) => {
+                  setRenameDraft(event.target.value);
+                  setRenameError("");
+                }}
+                aria-label="New file name"
+              />
+              {renameExtension && (
+                <span className="app-file-rename-extension">
+                  {renameExtension}
+                </span>
+              )}
+            </div>
             {renameError && (
               <p className="app-files-note app-files-note-error">{renameError}</p>
             )}
