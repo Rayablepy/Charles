@@ -5,7 +5,7 @@ from tools.tools import tool_list
 from config.settings import DB_PATH, PROJECT_ROOT, MAIN_MODEL
 from agent.system_prompt import build_system_prompt
 from subagents.web_v2 import build_web_agent
-from deepagents import create_deep_agent
+from deepagents import create_deep_agent, FilesystemPermission
 from deepagents.backends import FilesystemBackend, CompositeBackend, StateBackend, StoreBackend
 from langgraph.store.sqlite.aio import AsyncSqliteStore
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
@@ -57,6 +57,8 @@ def construct_agent(tools, store, checkpointer, subagents):
                 namespace=lambda op: ("Charles", "longterm"),
             ),
             "/project/": FilesystemBackend(root_dir=PROJECT_ROOT, virtual_mode=True),
+            "/skills/editable":FilesystemBackend(root_dir=PROJECT_ROOT, virtual_mode=True),
+            "/skills/locked":FilesystemBackend(root_dir=PROJECT_ROOT,virtual_mode=True)
         },
     )
     return create_deep_agent(
@@ -67,7 +69,15 @@ def construct_agent(tools, store, checkpointer, subagents):
         backend=backend,
         store=store,
         checkpointer=checkpointer,
-        subagents=subagents
+        subagents=subagents,
+        skills=["/skills/editable","/skills/locked"],
+        permissions=[
+            FilesystemPermission(
+                operations=["write"],
+                paths=["/skills/locked"],
+                mode="interrupt"
+            )
+        ]
     )
 
 deep_agent = DeepAgent()
