@@ -8,6 +8,7 @@ import {
   useLangGraphRuntime,
   type LangChainMessage,
 } from "@assistant-ui/react-langgraph";
+import { AgentBusyProvider } from "@/components/assistant-ui/elements/agent-busy.aui";
 import { LANGGRAPH_ASSISTANT_ID, langgraphClient } from "@/lib/langgraph";
 import { createLangGraphThreadListAdapter } from "@/lib/langgraph-thread-list";
 import { RagUploadAttachmentAdapter } from "@/lib/langgraph-attachments";
@@ -76,7 +77,7 @@ export function ChatRuntimeProvider({
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      {children}
+      <AgentBusyProvider>{children}</AgentBusyProvider>
     </AssistantRuntimeProvider>
   );
 }

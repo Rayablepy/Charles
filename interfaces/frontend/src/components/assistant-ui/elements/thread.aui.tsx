@@ -1,5 +1,6 @@
 "use client";
 
+import { useAgentBusy } from "@/components/assistant-ui/elements/agent-busy.aui";
 import {
   ComposerAddAttachment,
   ComposerAttachments,
@@ -377,6 +378,7 @@ const ThreadSuggestionItem: FC = () => {
 };
 
 const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
+  const busy = useAgentBusy();
   return (
     <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
       <ComposerPrimitive.AttachmentDropzone render={<div data-slot="aui_composer-shell" className="border-foreground/10 focus-within:border-foreground/25 data-[dragging=true]:border-ring flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] data-[dragging=true]:border-dashed data-[dragging=true]:bg-[color-mix(in_oklab,var(--color-accent)_50%,var(--color-background))]" />}><ComposerAttachments /><ComposerPrimitive.Input
@@ -386,12 +388,14 @@ const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
                       autoFocus={autoFocus}
                       enterKeyHint="send"
                       aria-label="Message input"
+                      submitMode={busy === undefined ? "enter" : "none"}
                     /><ComposerAction /></ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
   );
 };
 
 const ComposerAction: FC = () => {
+  const busy = useAgentBusy();
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
       <ComposerAddAttachment />
@@ -405,9 +409,18 @@ const ComposerAction: FC = () => {
           </AuiIf>
         </AuiIf>
         <AuiIf
-          condition={(s) => !s.thread.isRunning || s.thread.voice !== undefined}
+          condition={(s) => busy === undefined || s.thread.voice !== undefined}
         >
           <ComposerPrimitive.Send render={<TooltipIconButton tooltip="Send message" side="bottom" type="button" variant="default" size="icon" className="aui-composer-send size-7 rounded-full" aria-label="Send message" />}><ArrowUpIcon className="aui-composer-send-icon size-4" /></ComposerPrimitive.Send>
+        </AuiIf>
+        <AuiIf
+          condition={(s) =>
+            busy === "approval" && s.thread.voice === undefined
+          }
+        >
+          <TooltipIconButton tooltip="Waiting for approval" side="bottom" type="button" variant="default" size="icon" disabled className="aui-composer-send size-7 rounded-full" aria-label="Send message">
+            <ArrowUpIcon className="aui-composer-send-icon size-4" />
+          </TooltipIconButton>
         </AuiIf>
         <AuiIf
           condition={(s) => s.thread.isRunning && s.thread.voice === undefined}
@@ -611,6 +624,7 @@ const UserMessage: FC = () => {
 
 const UserEditButton: FC = () => {
   const aui = useAui();
+  const busy = useAgentBusy();
   const disabled = useAuiState(
     (s) =>
       s.message.composer.isEditing ||
@@ -628,7 +642,7 @@ const UserEditButton: FC = () => {
     <TooltipIconButton
       tooltip="Edit"
       className="aui-user-action-edit"
-      disabled={disabled}
+      disabled={disabled || busy !== undefined}
       onClick={() => {
         aui.composer.beginEdit();
         aui.composer.setText(text);
