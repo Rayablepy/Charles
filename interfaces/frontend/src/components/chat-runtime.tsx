@@ -64,6 +64,9 @@ export function ChatRuntimeProvider({
           | undefined;
         return {
           messages: withReasoningInMessages(values?.messages ?? []),
+          interrupts: (state.tasks ?? []).flatMap(
+            (task) => task.interrupts ?? [],
+          ),
         };
       } catch {
         return { messages: [] };

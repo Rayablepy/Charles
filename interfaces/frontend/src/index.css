@@ -394,6 +394,90 @@
     @apply min-h-0 flex-1 overflow-auto rounded-md border p-4 text-sm;
   }
 
+  .app-approval {
+    @apply flex flex-col gap-3 rounded-(--composer-radius) border border-foreground/15 bg-(--composer-bg) p-3 text-sm;
+  }
+
+  .app-approval-header {
+    @apply flex items-center gap-2 text-xs font-medium uppercase text-muted-foreground;
+  }
+
+  .app-approval-icon {
+    @apply size-4 shrink-0;
+  }
+
+  .app-approval-icon-busy {
+    @apply animate-spin motion-reduce:animate-none;
+  }
+
+  .app-approval-action {
+    @apply flex flex-col gap-2;
+  }
+
+  .app-approval-action-head {
+    @apply flex items-baseline gap-2;
+  }
+
+  .app-approval-action-name {
+    @apply font-medium text-foreground;
+  }
+
+  .app-approval-detail {
+    @apply flex flex-col gap-1.5;
+  }
+
+  .app-approval-target {
+    @apply font-mono text-xs break-all text-muted-foreground;
+  }
+
+  .app-approval-arg {
+    @apply flex flex-col gap-1;
+  }
+
+  .app-approval-arg-key {
+    @apply text-xs uppercase text-muted-foreground;
+  }
+
+  .app-approval-arg-value {
+    @apply font-mono text-xs break-all;
+  }
+
+  .app-approval-arg-block {
+    @apply max-h-40 overflow-auto rounded-md border bg-background/60 p-2 font-mono text-xs whitespace-pre-wrap break-words;
+  }
+
+  .app-approval-actions {
+    @apply flex justify-end gap-2;
+  }
+
+  .app-approval-btn {
+    @apply rounded-md border bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .app-approval-btn-on {
+    @apply border-ring bg-accent text-foreground;
+  }
+
+  .app-approval-btn-primary {
+    @apply border-transparent bg-primary text-primary-foreground hover:bg-primary/80;
+  }
+
+  .app-approval-input {
+    @apply min-w-0 flex-1 rounded-md border bg-background px-3 py-1.5 text-sm outline-none focus:border-ring;
+  }
+
+  .app-approval-answer {
+    @apply flex items-center gap-2;
+  }
+
+  .app-approval-note {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .app-approval-error {
+    @apply text-xs text-destructive;
+  }
+
   .app-memory {
     @apply flex shrink-0 flex-col gap-2 border-t p-3;
   }

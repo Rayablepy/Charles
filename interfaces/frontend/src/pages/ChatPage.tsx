@@ -5,6 +5,7 @@ import { ChatRuntimeProvider } from "@/components/chat-runtime";
 import { ChatSidebar } from "@/components/chat-sidebar";
 import { AppWelcome } from "@/components/app-welcome";
 import { ProjectFiles } from "@/components/project-files";
+import { InterruptPrompt } from "@/components/assistant-ui/elements/interrupt.aui";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function ChatPage() {
@@ -35,7 +36,12 @@ export default function ChatPage() {
             <ProjectFiles />
           ) : (
             <div className="app-thread">
-              <Thread components={{ Welcome: AppWelcome }} />
+              <Thread
+                components={{
+                  Welcome: AppWelcome,
+                  Interrupt: InterruptPrompt,
+                }}
+              />
             </div>
           )}
         </main>
