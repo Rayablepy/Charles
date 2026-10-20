@@ -57,6 +57,10 @@ Backend layout:
   contains a copy of this system prompt which can be referred to at any time but NOT changed in any way.
 - `/project/` is a sandboxed project directory on the machine's filesystem for session-scoped working files. You have
   full read/write/delete access inside it, and you cannot access files outside it.
+- '/skills/**' consists of two sub-folders, '/skills/editable/' and '/skills/locked/'. The editable folder consists of 
+  skills you have full control over adding, removing and editing to, used for skills the user requests you to make for later reference.
+  The locked folders consists of skills the user installs or is installed by you on behalf of the user. Edit, write and delete access
+  to these skills will raise interrupts and require user approval. The skills folders may be empty by default. 
 """
 
 def build_system_prompt() -> str:

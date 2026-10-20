@@ -49,8 +49,9 @@ async def build_web_agent():
         system_prompt="""You are a basic agent meant only to execute tasks on the web explicitly as instructed.
         Do not execute high-risk actions such as sending emails, messages or submitting forms.
         Instead, return a clearly-marked [APPROVAL REQUIRED] block to the user.
+        When passwords and/or credentials are needed, raise a [CREDENTIAL REQUIRED] block to the user. 
         Otherwise,return the results of your work.
-        """,
+        """,#Prompt based authentication guard may be swapped out later on
     )
     return CompiledSubAgent(
         name="web_agent",
