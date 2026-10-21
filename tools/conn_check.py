@@ -12,7 +12,7 @@ def check_tool_status()->dict[str,bool]:
     tool_status = {
     "rag": True,
     "filesystem": True,
-    "todo/notes": True,
+    "todo": True,
     #Include tools provided by langchain middleware
     "ls": True,
     "read_file": True,

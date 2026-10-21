@@ -1,5 +1,5 @@
 import asyncio
-
+import os
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from tools.tools import tool_list
 from config.settings import DB_PATH, PROJECT_ROOT, MAIN_MODEL
@@ -12,7 +12,9 @@ from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 PROJECT_ROOT.mkdir(parents=True, exist_ok=True)
-
+(PROJECT_ROOT / "project").mkdir(parents=True, exist_ok=True)
+(PROJECT_ROOT / "skills" / "editable").mkdir(parents=True, exist_ok=True)
+(PROJECT_ROOT / "skills" / "locked").mkdir(parents=True, exist_ok=True)
 
 class DeepAgent:
     def __init__(self) -> None:
