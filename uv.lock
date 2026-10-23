@@ -2568,6 +2568,7 @@ dependencies = [
     { name = "textract" },
     { name = "torch" },
     { name = "transformers" },
+    { name = "xa11y" },
 ]
 
 [package.metadata]
@@ -2593,6 +2594,7 @@ requires-dist = [
     { name = "textract", specifier = ">=2.0.0" },
     { name = "torch", specifier = ">=2.13.0" },
     { name = "transformers", specifier = ">=5.14.1" },
+    { name = "xa11y", specifier = ">=0.15.3" },
 ]
 
 [[package]]
@@ -8359,6 +8361,19 @@ name = "win-unicode-console"
 version = "0.5"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/89/8d/7aad74930380c8972ab282304a2ff45f3d4927108bb6693cabcc9fc6a099/win_unicode_console-0.5.zip", hash = "sha256:d4142d4d56d46f449d6f00536a73625a871cba040f0bc1a2e305a04578f07d1e", size = 31420, upload-time = "2016-06-25T19:48:54.05Z" }
+
+[[package]]
+name = "xa11y"
+version = "0.15.3"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/88/93/ff027582306f4e70ed337bcb21fe30839fa8d17abdd10d072a862a6424e3/xa11y-0.15.3.tar.gz", hash = "sha256:c50184ff25c8e9eb7fa13abaec766d08e0f540157d2679fcd9b580ef9262952a", size = 685721, upload-time = "2026-10-21T13:40:16.971Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/05/ad/6c6b84accffdc0808fa90d2700c4ddc1e241b115d59c0100fa7dd3c859f4/xa11y-0.15.3-cp39-abi3-macosx_10_12_x86_64.whl", hash = "sha256:105f79d502bb1d6398fff909cb39945ef0b3860384a2c900233321d31b1329d1", size = 1205335, upload-time = "2026-10-21T13:40:07.732Z" },
+    { url = "https://files.pythonhosted.org/packages/10/a8/377f4b25d9a83bb7994e1b7542bbafaafdfbffbb662386312231247c2bc8/xa11y-0.15.3-cp39-abi3-macosx_11_0_arm64.whl", hash = "sha256:d805a9c919ced9e550ee885481e31f023190c45c4599bcefb2ba83455f7a5b90", size = 1174379, upload-time = "2026-10-21T13:40:09.846Z" },
+    { url = "https://files.pythonhosted.org/packages/23/a4/8f56ccb7d6e7375d57852eb276c97e08290569f3e39d84a683c0c2da05b9/xa11y-0.15.3-cp39-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:c8d217ebf9be85bd3c2dcf2bc7e0548cba70ed88e76e3063e5e2ba81aa51765e", size = 2921499, upload-time = "2026-10-21T13:40:11.862Z" },
+    { url = "https://files.pythonhosted.org/packages/7b/8e/ae0e4c605071c0285aca18791dab1d3939d12d84a07f50f7609bf01c7065/xa11y-0.15.3-cp39-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:c31a66b53bea8071d326583e0bfff329252991cc801f40cce0797c2090bfcdad", size = 2981453, upload-time = "2026-10-21T13:40:13.497Z" },
+    { url = "https://files.pythonhosted.org/packages/f8/f0/b049ec2f865eae4e3717c8760973c422b4a662ce3165762bcf730110a679/xa11y-0.15.3-cp39-abi3-win_amd64.whl", hash = "sha256:37644ca336480ebd88c5358a5edf68bcab30d8c3e83d4b1e0b15fa150f684db2", size = 1070269, upload-time = "2026-10-21T13:40:15.014Z" },
+]
 
 [[package]]
 name = "xlrd"
