@@ -1,5 +1,5 @@
 import asyncio
-import os
+
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from tools.tools import tool_list
 from config.settings import DB_PATH, PROJECT_ROOT, MAIN_MODEL
@@ -9,6 +9,7 @@ from deepagents import create_deep_agent, FilesystemPermission
 from deepagents.backends import FilesystemBackend, CompositeBackend, StateBackend, StoreBackend
 from langgraph.store.sqlite.aio import AsyncSqliteStore
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
+from langchain.agents.middleware import TodoListMiddleware
 
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 PROJECT_ROOT.mkdir(parents=True, exist_ok=True)
@@ -79,7 +80,7 @@ def construct_agent(tools, store, checkpointer, subagents):
                 paths=["/skills/locked"],
                 mode="interrupt"
             )
-        ]
+        ],
     )
 
 deep_agent = DeepAgent()

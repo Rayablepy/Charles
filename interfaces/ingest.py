@@ -24,8 +24,8 @@ MAX_UPLOAD_BYTES = 5 * 1024 * 1024
 TRANSCRIBE_MAX_CHARS = 100_000
 STAGING_PREFIX = "rag-upload-"
 TERMINAL = {"indexed", "already-indexed", "failed"}
-PROJECT_FILE_MAX_BYTES = 512 * 1024
-PROJECT_FILE_LIST_LIMIT = 5000
+FILE_MAX_BYTES = 512 * 1024
+FILE_LIST_LIMIT = 5000
 
 JOBS: dict[str, dict] = {}
 QUEUE: queue.Queue[str] = queue.Queue()
@@ -199,18 +199,18 @@ async def job_status(job_id: str) -> dict:
     return payload
 
 
-def project_dir() -> Path:
-    root = (PROJECT_ROOT / "project").resolve()
+def scope_dir(scope: str) -> Path:
+    root = (PROJECT_ROOT / scope).resolve()
     root.mkdir(parents=True, exist_ok=True)
     return root
 
 
-def resolve_project_path(raw: str) -> Path:
-    root = project_dir()
+def resolve_scope_path(scope: str, raw: str) -> Path:
+    root = scope_dir(scope)
     relative = (raw or "").replace("\\", "/").strip("/")
     candidate = (root / relative).resolve()
     if candidate != root and not candidate.is_relative_to(root):
-        raise HTTPException(status_code=400, detail="path escapes the project directory")
+        raise HTTPException(status_code=400, detail=f"path escapes the {scope} directory")
     return candidate
 
 
@@ -225,9 +225,8 @@ def validate_file_name(name: str) -> str:
     return clean
 
 
-@app.get("/project/files")
-async def project_files() -> dict:
-    root = project_dir()
+def list_scope_files(scope: str) -> dict:
+    root = scope_dir(scope)
     files: list[dict] = []
     truncated = False
     for dirpath, dirnames, filenames in os.walk(root):
@@ -249,7 +248,7 @@ async def project_files() -> dict:
                     "full_path": str(full),
                 }
             )
-            if len(files) >= PROJECT_FILE_LIST_LIMIT:
+            if len(files) >= FILE_LIST_LIMIT:
                 truncated = True
                 break
         if truncated:
@@ -258,19 +257,18 @@ async def project_files() -> dict:
     return {"root": str(root), "truncated": truncated, "files": files}
 
 
-@app.get("/project/file")
-async def project_file(path: str = Query(...)) -> dict:
-    target = resolve_project_path(path)
+def read_scope_file(scope: str, path: str) -> dict:
+    target = resolve_scope_path(scope, path)
     if not target.is_file():
         raise HTTPException(status_code=404, detail="file not found")
     try:
         stat = target.stat()
         with open(target, "rb") as handle:
-            data = handle.read(PROJECT_FILE_MAX_BYTES)
+            data = handle.read(FILE_MAX_BYTES)
     except OSError as exc:
         raise HTTPException(status_code=500, detail="failed to read file") from exc
     binary = b"\x00" in data
-    root = project_dir()
+    root = scope_dir(scope)
     return {
         "path": target.relative_to(root).as_posix(),
         "name": target.name,
@@ -281,10 +279,9 @@ async def project_file(path: str = Query(...)) -> dict:
     }
 
 
-@app.post("/project/file/rename")
-async def rename_project_file(path: str = Query(...), name: str = Query(...)) -> dict:
-    root = project_dir()
-    target = resolve_project_path(path)
+def rename_scope_file(scope: str, path: str, name: str) -> dict:
+    root = scope_dir(scope)
+    target = resolve_scope_path(scope, path)
     if not target.is_file():
         raise HTTPException(status_code=404, detail="file not found")
     new_name = validate_file_name(name)
@@ -293,7 +290,7 @@ async def rename_project_file(path: str = Query(...), name: str = Query(...)) ->
         raise HTTPException(status_code=400, detail="file extension cannot be changed")
     destination = (target.parent / new_name).resolve()
     if destination != root and not destination.is_relative_to(root):
-        raise HTTPException(status_code=400, detail="path escapes the project directory")
+        raise HTTPException(status_code=400, detail=f"path escapes the {scope} directory")
     if destination == target:
         return {
             "ok": True,
@@ -313,10 +310,9 @@ async def rename_project_file(path: str = Query(...), name: str = Query(...)) ->
     }
 
 
-@app.delete("/project/file")
-async def delete_project_file(path: str = Query(...)) -> dict:
-    root = project_dir()
-    target = resolve_project_path(path)
+def delete_scope_file(scope: str, path: str) -> dict:
+    root = scope_dir(scope)
+    target = resolve_scope_path(scope, path)
     if not target.is_file():
         raise HTTPException(status_code=404, detail="file not found")
     try:
@@ -324,6 +320,46 @@ async def delete_project_file(path: str = Query(...)) -> dict:
     except OSError as exc:
         raise HTTPException(status_code=500, detail="failed to delete file") from exc
     return {"ok": True, "path": target.relative_to(root).as_posix()}
+
+
+@app.get("/project/files")
+async def project_files() -> dict:
+    return list_scope_files("project")
+
+
+@app.get("/skills/files")
+async def skills_files() -> dict:
+    return list_scope_files("skills")
+
+
+@app.get("/project/file")
+async def project_file(path: str = Query(...)) -> dict:
+    return read_scope_file("project", path)
+
+
+@app.get("/skills/file")
+async def skills_file(path: str = Query(...)) -> dict:
+    return read_scope_file("skills", path)
+
+
+@app.post("/project/file/rename")
+async def rename_project_file(path: str = Query(...), name: str = Query(...)) -> dict:
+    return rename_scope_file("project", path, name)
+
+
+@app.post("/skills/file/rename")
+async def rename_skills_file(path: str = Query(...), name: str = Query(...)) -> dict:
+    return rename_scope_file("skills", path, name)
+
+
+@app.delete("/project/file")
+async def delete_project_file(path: str = Query(...)) -> dict:
+    return delete_scope_file("project", path)
+
+
+@app.delete("/skills/file")
+async def delete_skills_file(path: str = Query(...)) -> dict:
+    return delete_scope_file("skills", path)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FolderIcon, PencilIcon, PlusIcon, Trash2Icon } from "lucide-react";
+import {
+  FolderIcon,
+  PencilIcon,
+  PlusIcon,
+  SparklesIcon,
+  Trash2Icon,
+} from "lucide-react";
 import { useAuiState } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -13,16 +19,23 @@ import {
   type ChatSummary,
 } from "@/lib/langgraph";
 
+export type AppView = "chat" | "project" | "skills";
+
+const VIEWS: { id: AppView; label: string; icon: typeof FolderIcon }[] = [
+  { id: "project", label: "Project Files", icon: FolderIcon },
+  { id: "skills", label: "Skills", icon: SparklesIcon },
+];
+
 export function ChatSidebar({
   activeThreadId,
   onSelect,
-  showProjectFiles,
-  onOpenProjectFiles,
+  view,
+  onSelectView,
 }: {
   activeThreadId?: string | undefined;
   onSelect: (threadId: string | undefined) => void;
-  showProjectFiles: boolean;
-  onOpenProjectFiles: () => void;
+  view: AppView;
+  onSelectView: (view: AppView) => void;
 }) {
   const messagesCount = useAuiState((s) => s.thread.messages.length);
   const [chats, setChats] = useState<ChatSummary[]>([]);
@@ -96,18 +109,18 @@ export function ChatSidebar({
           <PlusIcon className="size-4" />
           <span>New chat</span>
         </button>
-        <button
-          type="button"
-          className={cn(
-            "app-nav-item",
-            showProjectFiles && "app-nav-item-active",
-          )}
-          onClick={onOpenProjectFiles}
-          aria-current={showProjectFiles ? "true" : undefined}
-        >
-          <FolderIcon className="size-4" />
-          <span>Project Files</span>
-        </button>
+        {VIEWS.map(({ id, label, icon: Icon }) => (
+          <button
+            key={id}
+            type="button"
+            className={cn("app-nav-item", view === id && "app-nav-item-active")}
+            onClick={() => onSelectView(id)}
+            aria-current={view === id ? "true" : undefined}
+          >
+            <Icon className="size-4" />
+            <span>{label}</span>
+          </button>
+        ))}
 <div className="app-chat-scroll">
           {!loaded ? (
             <p className="app-chat-note">Loading chats…</p>
