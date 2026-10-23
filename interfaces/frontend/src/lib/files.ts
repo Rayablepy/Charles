@@ -1,6 +1,8 @@
 import { INGEST_API_URL } from "@/lib/rag-upload";
 
-export type ProjectFile = {
+export type FileScope = "project" | "skills";
+
+export type StoredFile = {
   path: string;
   name: string;
   size: number;
@@ -8,7 +10,7 @@ export type ProjectFile = {
   full_path: string;
 };
 
-export type ProjectFileContent = {
+export type StoredFileContent = {
   path: string;
   name: string;
   size: number;
@@ -27,32 +29,43 @@ async function readError(response: Response): Promise<string> {
   return `request failed (${response.status})`;
 }
 
-export async function listProjectFiles(): Promise<ProjectFile[]> {
-  const response = await fetch(`${INGEST_API_URL}/project/files`);
+export async function listFiles(scope: FileScope): Promise<StoredFile[]> {
+  const response = await fetch(`${INGEST_API_URL}/${scope}/files`);
   if (!response.ok) throw new Error(await readError(response));
-  const body = (await response.json()) as { files?: ProjectFile[] };
+  const body = (await response.json()) as { files?: StoredFile[] };
   return body.files ?? [];
 }
 
-export async function readProjectFile(path: string): Promise<ProjectFileContent> {
+export async function readFile(
+  scope: FileScope,
+  path: string,
+): Promise<StoredFileContent> {
   const response = await fetch(
-    `${INGEST_API_URL}/project/file?path=${encodeURIComponent(path)}`,
+    `${INGEST_API_URL}/${scope}/file?path=${encodeURIComponent(path)}`,
   );
   if (!response.ok) throw new Error(await readError(response));
-  return (await response.json()) as ProjectFileContent;
+  return (await response.json()) as StoredFileContent;
 }
 
-export async function renameProjectFile(path: string, name: string): Promise<void> {
+export async function renameFile(
+  scope: FileScope,
+  path: string,
+  name: string,
+): Promise<void> {
   const query = `path=${encodeURIComponent(path)}&name=${encodeURIComponent(name)}`;
-  const response = await fetch(`${INGEST_API_URL}/project/file/rename?${query}`, {
-    method: "POST",
-  });
+  const response = await fetch(
+    `${INGEST_API_URL}/${scope}/file/rename?${query}`,
+    { method: "POST" },
+  );
   if (!response.ok) throw new Error(await readError(response));
 }
 
-export async function deleteProjectFile(path: string): Promise<void> {
+export async function deleteFile(
+  scope: FileScope,
+  path: string,
+): Promise<void> {
   const response = await fetch(
-    `${INGEST_API_URL}/project/file?path=${encodeURIComponent(path)}`,
+    `${INGEST_API_URL}/${scope}/file?path=${encodeURIComponent(path)}`,
     { method: "DELETE" },
   );
   if (!response.ok) throw new Error(await readError(response));

@@ -24,13 +24,14 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MarkdownContent } from "@/components/assistant-ui/elements/markdown-content";
 import {
-  deleteProjectFile,
-  listProjectFiles,
-  readProjectFile,
-  renameProjectFile,
-  type ProjectFile,
-  type ProjectFileContent,
-} from "@/lib/project-files";
+  deleteFile,
+  listFiles,
+  readFile,
+  renameFile,
+  type FileScope,
+  type StoredFile,
+  type StoredFileContent,
+} from "@/lib/files";
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -69,32 +70,51 @@ function errorMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
 }
 
-export function ProjectFiles() {
-  const [files, setFiles] = useState<ProjectFile[] | null>(null);
+// Skills nest files under editable/locked; show that as meta
+function cardLabel(
+  scope: FileScope,
+  file: StoredFile,
+): { label: string; folder: string } {
+  if (scope === "project") return { label: file.name, folder: "" };
+  const [head = "", ...rest] = file.path.split("/");
+  if (rest.length === 0) return { label: head, folder: "" };
+  return { label: rest.join("/"), folder: head };
+}
+
+export function FileBrowser({
+  scope,
+  title,
+  description,
+}: {
+  scope: FileScope;
+  title: string;
+  description?: string;
+}) {
+  const [files, setFiles] = useState<StoredFile[] | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
-  const [selected, setSelected] = useState<ProjectFileContent | null>(null);
+  const [selected, setSelected] = useState<StoredFileContent | null>(null);
   const [loadingPath, setLoadingPath] = useState<string | null>(null);
 
-  const [renameTarget, setRenameTarget] = useState<ProjectFile | null>(null);
+  const [renameTarget, setRenameTarget] = useState<StoredFile | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
   const [renameError, setRenameError] = useState("");
   const [renameBusy, setRenameBusy] = useState(false);
 
-  const [deleteTarget, setDeleteTarget] = useState<ProjectFile | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<StoredFile | null>(null);
   const [deleteError, setDeleteError] = useState("");
   const [deleteBusy, setDeleteBusy] = useState(false);
 
   const loadFiles = useCallback(async () => {
     try {
-      const next = await listProjectFiles();
+      const next = await listFiles(scope);
       setFiles(next);
       setError("");
     } catch (err) {
       setFiles([]);
       setError(errorMessage(err));
     }
-  }, []);
+  }, [scope]);
 
   useEffect(() => {
     void loadFiles();
@@ -106,10 +126,10 @@ export function ProjectFiles() {
     return () => clearTimeout(timer);
   }, [notice]);
 
-  const openFile = async (file: ProjectFile) => {
+  const openFile = async (file: StoredFile) => {
     setLoadingPath(file.path);
     try {
-      const content = await readProjectFile(file.path);
+      const content = await readFile(scope, file.path);
       setError("");
       setSelected(content);
     } catch (err) {
@@ -119,7 +139,7 @@ export function ProjectFiles() {
     }
   };
 
-  const copyPath = async (file: ProjectFile) => {
+  const copyPath = async (file: StoredFile) => {
     try {
       await navigator.clipboard.writeText(file.full_path);
       setNotice(`Copied ${file.full_path}`);
@@ -128,7 +148,7 @@ export function ProjectFiles() {
     }
   };
 
-  const startRename = (file: ProjectFile) => {
+  const startRename = (file: StoredFile) => {
     setRenameTarget(file);
     setRenameDraft(splitName(file.name).stem);
     setRenameError("");
@@ -151,7 +171,7 @@ export function ProjectFiles() {
     }
     setRenameBusy(true);
     try {
-      await renameProjectFile(target.path, name);
+      await renameFile(scope, target.path, name);
       setNotice(`Renamed to ${name}`);
       closeRename();
       await loadFiles();
@@ -172,7 +192,7 @@ export function ProjectFiles() {
     if (!target) return;
     setDeleteBusy(true);
     try {
-      await deleteProjectFile(target.path);
+      await deleteFile(scope, target.path);
       setNotice(`Deleted ${target.name}`);
       closeDelete();
       await loadFiles();
@@ -190,7 +210,8 @@ export function ProjectFiles() {
   return (
     <div className="app-files">
       <header className="app-files-header">
-        <h2 className="app-files-title">Project Files</h2>
+        <h2 className="app-files-title">{title}</h2>
+        {description && <p className="app-files-note">{description}</p>}
       </header>
       {error && <p className="app-files-note app-files-note-error">{error}</p>}
       {notice && <p className="app-files-note">{notice}</p>}
@@ -200,59 +221,64 @@ export function ProjectFiles() {
         <p className="app-files-note">No files yet</p>
       ) : (
         <div className="app-files-grid">
-          {files.map((file) => (
-            <div key={file.path} className="app-file-card">
-              <button
-                type="button"
-                className="app-file-card-open"
-                onClick={() => void openFile(file)}
-                aria-busy={loadingPath === file.path}
-              >
-                <span className="app-file-card-icon">
-                  {loadingPath === file.path ? (
-                    <Loader2Icon className="size-4 animate-spin" />
-                  ) : (
-                    <FileIcon className="size-4" />
-                  )}
-                </span>
-                <span className="app-file-card-name">{file.name}</span>
-                <span className="app-file-card-meta">
-                  {formatSize(file.size)} · {formatEdited(file.modified)}
-                </span>
-              </button>
-              <DropdownMenu>
-                <DropdownMenuTrigger
-                  className="app-file-card-menu-trigger"
-                  aria-label={`Actions for ${file.name}`}
+          {files.map((file) => {
+            const { label, folder } = cardLabel(scope, file);
+            return (
+              <div key={file.path} className="app-file-card">
+                <button
+                  type="button"
+                  className="app-file-card-open"
+                  onClick={() => void openFile(file)}
+                  aria-busy={loadingPath === file.path}
+                  title={file.path}
                 >
-                  <EllipsisVerticalIcon className="size-3.5" />
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="app-file-card-menu">
-                  <DropdownMenuItem
-                    className="app-file-card-menu-item"
-                    onClick={() => startRename(file)}
+                  <span className="app-file-card-icon">
+                    {loadingPath === file.path ? (
+                      <Loader2Icon className="size-4 animate-spin" />
+                    ) : (
+                      <FileIcon className="size-4" />
+                    )}
+                  </span>
+                  <span className="app-file-card-name">{label}</span>
+                  <span className="app-file-card-meta">
+                    {folder ? `${folder} · ` : ""}
+                    {formatSize(file.size)} · {formatEdited(file.modified)}
+                  </span>
+                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    className="app-file-card-menu-trigger"
+                    aria-label={`Actions for ${file.name}`}
                   >
-                    <PencilIcon className="size-3.5" />
-                    <span>Rename</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="app-file-card-menu-item"
-                    onClick={() => void copyPath(file)}
-                  >
-                    <CopyIcon className="size-3.5" />
-                    <span>Copy path</span>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="app-file-card-menu-item app-file-card-menu-item-danger"
-                    onClick={() => setDeleteTarget(file)}
-                  >
-                    <Trash2Icon className="size-3.5" />
-                    <span>Delete</span>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          ))}
+                    <EllipsisVerticalIcon className="size-3.5" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="app-file-card-menu">
+                    <DropdownMenuItem
+                      className="app-file-card-menu-item"
+                      onClick={() => startRename(file)}
+                    >
+                      <PencilIcon className="size-3.5" />
+                      <span>Rename</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="app-file-card-menu-item"
+                      onClick={() => void copyPath(file)}
+                    >
+                      <CopyIcon className="size-3.5" />
+                      <span>Copy path</span>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      className="app-file-card-menu-item app-file-card-menu-item-danger"
+                      onClick={() => setDeleteTarget(file)}
+                    >
+                      <Trash2Icon className="size-3.5" />
+                      <span>Delete</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            );
+          })}
         </div>
       )}
       <Dialog
