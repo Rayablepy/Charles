@@ -39,7 +39,6 @@ export default function ChatPage() {
             <FileBrowser
               scope="skills"
               title="Skills"
-              description="Editable skills follow your requests; locked skills need your approval before the agent writes."
             />
           )}
           {view === "chat" && (

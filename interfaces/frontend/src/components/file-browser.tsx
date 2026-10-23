@@ -84,11 +84,9 @@ function cardLabel(
 export function FileBrowser({
   scope,
   title,
-  description,
 }: {
   scope: FileScope;
   title: string;
-  description?: string;
 }) {
   const [files, setFiles] = useState<StoredFile[] | null>(null);
   const [error, setError] = useState("");
@@ -211,7 +209,6 @@ export function FileBrowser({
     <div className="app-files">
       <header className="app-files-header">
         <h2 className="app-files-title">{title}</h2>
-        {description && <p className="app-files-note">{description}</p>}
       </header>
       {error && <p className="app-files-note app-files-note-error">{error}</p>}
       {notice && <p className="app-files-note">{notice}</p>}

@@ -9,8 +9,6 @@ from deepagents import create_deep_agent, FilesystemPermission
 from deepagents.backends import FilesystemBackend, CompositeBackend, StateBackend, StoreBackend
 from langgraph.store.sqlite.aio import AsyncSqliteStore
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-from langchain.agents.middleware import TodoListMiddleware
-
 DB_PATH.parent.mkdir(parents=True, exist_ok=True)
 PROJECT_ROOT.mkdir(parents=True, exist_ok=True)
 (PROJECT_ROOT / "project").mkdir(parents=True, exist_ok=True)
