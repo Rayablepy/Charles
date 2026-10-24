@@ -68,3 +68,7 @@ WEB_FETCH_TIMEOUT_SECONDS = 15
 
 #MCP urls
 BROWSER_OS_URL="http://127.0.0.1:9010/mcp"
+
+#other env vars
+WEB_ENABLED=os.getenv("WEB_ENABLED")
+DESKTOP_ENABLED=os.getenv("DESKTOP_ENABLED")

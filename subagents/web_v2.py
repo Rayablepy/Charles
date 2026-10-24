@@ -9,13 +9,16 @@ from fastmcp.client.transports.stdio import StdioTransport
 from langchain.agents import create_agent
 from langchain.mcp import MCPAdapter
 from deepagents import CompiledSubAgent
-from config.settings import LOCAL_MODEL, MAIN_MODEL
+from config.settings import LOCAL_MODEL, MAIN_MODEL, WEB_ENABLED
+
 WEB_TOOLS_STATUS = None
 web_tools: list = []
 
 
 async def ensure_web_mcp():
     global WEB_TOOLS_STATUS, web_tools
+    if not WEB_ENABLED:
+        return False
     if WEB_TOOLS_STATUS is True:
         return True
     try:
