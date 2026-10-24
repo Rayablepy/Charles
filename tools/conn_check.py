@@ -1,5 +1,6 @@
 from langchain_core.tools import tool
 from subagents.web_v2 import ensure_web_mcp
+from subagents.desktop import ensure_desktop_mcp
 
 #May have actual checks on connection-bound tools in the future, tbc
 @tool
@@ -31,11 +32,16 @@ async def check_subagent_status()->dict[str,bool]:
         None
     Returns:`
         dict[str,bool]: The subagents available to you.`"""
+    subagent_status = {
+        "web_agent": False,
+        "desktop_controller_agent": False,
+                       }
     web_status = await ensure_web_mcp()
+    desktop_status = await ensure_desktop_mcp()
     if web_status:
-        subagent_status = {"web_agent": True}
-    else:
-        subagent_status = {"web_agent": False}
+        subagent_status["web_agent"] = True
+    if desktop_status:
+        subagent_status["desktop_controller_agent"] = True
     return subagent_status
 
 check_tool_list=[check_tool_status,check_subagent_status]

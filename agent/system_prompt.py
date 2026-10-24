@@ -41,7 +41,9 @@ TOOL_NOTES = {
 
 SUBAGENT_NOTES={
     "web_agent": """Delegate tasks that involve using the internet and/or web browsers
-    to this subagent. For example, checking calendars, writing emails or scraping websites"""
+    to this subagent. For example, checking calendars, writing emails or scraping websites""",
+    "desktop_controller_agent": """Delegate tasks that involve using the user's desktop interface and/or
+    non-browser windows to this subagent. For example, opening the calculator app."""
 }
 
 BACKEND_MIDDLEWARE_NOTES="""
