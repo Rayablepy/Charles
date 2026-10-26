@@ -532,6 +532,10 @@
     @apply text-xs text-muted-foreground;
   }
 
+  .app-settings-error {
+    @apply text-xs text-destructive;
+  }
+
   .app-settings-actions {
     @apply flex justify-end gap-2 pt-1;
   }

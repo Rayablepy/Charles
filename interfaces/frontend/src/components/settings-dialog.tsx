@@ -21,7 +21,11 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { applyTheme, readTheme, type Theme } from "@/lib/theme";
-import { FEATURED_PROVIDERS, type Provider } from "@/lib/providers";
+import {
+  FEATURED_PROVIDERS,
+  saveProviderConfig,
+  type Provider,
+} from "@/lib/providers";
 
 type SettingsTab = "appearance" | "providers";
 
@@ -29,6 +33,10 @@ type ProviderConfig = {
   model: string;
   apiKey: string;
 };
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 const TABS: { id: SettingsTab; label: string; icon: typeof PaletteIcon }[] = [
   { id: "appearance", label: "Appearance", icon: PaletteIcon },
@@ -46,6 +54,8 @@ export function SettingsDialog() {
   const [draftModel, setDraftModel] = useState("");
   const [draftKey, setDraftKey] = useState("");
   const [keyVisible, setKeyVisible] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
 
   useEffect(() => {
     applyTheme(theme);
@@ -67,6 +77,7 @@ export function SettingsDialog() {
   const closeProvider = () => {
     setActiveProviderId(null);
     setKeyVisible(false);
+    setSaveError("");
   };
 
   const startProvider = (provider: Provider) => {
@@ -75,18 +86,32 @@ export function SettingsDialog() {
     setDraftModel(existing?.model ?? "");
     setDraftKey(existing?.apiKey ?? "");
     setKeyVisible(false);
+    setSaveError("");
   };
 
-  const saveProvider = () => {
-    if (!activeProvider || !canSave) return;
-    setConfigured((current) => ({
-      ...current,
-      [activeProvider.id]: {
-        model: draftModel.trim(),
-        apiKey: draftKey.trim(),
-      },
-    }));
-    closeProvider();
+  const saveProvider = async () => {
+    if (!activeProvider || !canSave || saving) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      await saveProviderConfig(
+        activeProvider.id,
+        draftModel.trim(),
+        draftKey.trim(),
+      );
+      setConfigured((current) => ({
+        ...current,
+        [activeProvider.id]: {
+          model: draftModel.trim(),
+          apiKey: draftKey.trim(),
+        },
+      }));
+      closeProvider();
+    } catch (error) {
+      setSaveError(errorMessage(error));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const removeProvider = () => {
@@ -216,7 +241,7 @@ export function SettingsDialog() {
                 className="app-settings-form"
                 onSubmit={(event) => {
                   event.preventDefault();
-                  saveProvider();
+                  void saveProvider();
                 }}
               >
                 <div className="app-field">
@@ -267,8 +292,11 @@ export function SettingsDialog() {
                   </span>
                 </div>
                 <p className="app-field-hint">
-                  Keys stay in this session and are not sent anywhere yet.
+                  Keys are sent to the local ingest API when you save.
                 </p>
+                {saveError && (
+                  <p className="app-settings-error">{saveError}</p>
+                )}
                 <div className="app-settings-actions">
                   {activeConfig && (
                     <button
@@ -289,9 +317,9 @@ export function SettingsDialog() {
                   <button
                     type="submit"
                     className="app-dialog-btn app-dialog-btn-primary"
-                    disabled={!canSave}
+                    disabled={!canSave || saving}
                   >
-                    Save
+                    {saving ? "Saving…" : "Save"}
                   </button>
                 </div>
               </form>

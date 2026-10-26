@@ -1,3 +1,5 @@
+import { INGEST_API_URL } from "@/lib/rag-upload";
+
 export type Provider = {
   id: string;
   label: string;
@@ -100,3 +102,27 @@ export const FEATURED_PROVIDERS: Provider[] = [
     defaultModel: "amazon.nova-pro-v1:0",
   },
 ];
+
+async function readError(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as { detail?: string };
+    if (typeof body.detail === "string" && body.detail) return body.detail;
+  } catch {
+    /* response was not JSON */
+  }
+  return `request failed (${response.status})`;
+}
+
+/*ingest API, not LangGraph*/
+export async function saveProviderConfig(
+  provider: string,
+  model: string,
+  apiKey: string,
+): Promise<void> {
+  const response = await fetch(`${INGEST_API_URL}/provider`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider, model, api_key: apiKey }),
+  });
+  if (!response.ok) throw new Error(await readError(response));
+}
