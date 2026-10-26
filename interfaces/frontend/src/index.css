@@ -178,7 +178,7 @@
     font-variation-settings: 'wght' 900, 'ROND' 100;
   }
 
-  .app-theme-toggle {
+  .app-settings-trigger {
     @apply flex size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground;
   }
 
@@ -392,6 +392,171 @@
 
   .app-file-viewer-markdown {
     @apply min-h-0 flex-1 overflow-auto rounded-md border p-4 text-sm;
+  }
+
+  .app-settings-dialog {
+    @apply h-[min(32rem,calc(100dvh-4rem))]! w-[min(48rem,calc(100vw-2rem))]! max-w-none! gap-0! overflow-hidden! p-0! sm:max-w-none!;
+    grid-template-columns: 13rem minmax(0, 1fr);
+  }
+
+  .app-settings-rail {
+    @apply flex min-h-0 flex-col border-r bg-muted/40;
+  }
+
+  .app-settings-rail-header {
+    @apply flex shrink-0 flex-col gap-1 border-b p-4;
+  }
+
+  .app-settings-rail-title {
+    @apply font-heading text-lg font-extrabold;
+  }
+
+  .app-settings-nav {
+    @apply flex flex-col gap-1 overflow-y-auto p-2;
+  }
+
+  .app-settings-nav-item {
+    @apply flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground;
+  }
+
+  .app-settings-nav-item-active {
+    @apply bg-accent text-foreground;
+  }
+
+  .app-settings-nav-count {
+    @apply ml-auto rounded-full bg-foreground px-1.5 text-[10px] font-semibold text-background;
+  }
+
+  .app-settings-main {
+    @apply min-h-0 min-w-0 overflow-y-auto p-6;
+  }
+
+  .app-settings-panel {
+    @apply flex flex-col gap-4;
+  }
+
+  .app-settings-header {
+    @apply flex flex-col gap-1 pr-6;
+  }
+
+  .app-settings-title {
+    @apply font-heading text-xl font-extrabold;
+  }
+
+  .app-settings-note {
+    @apply text-sm text-muted-foreground;
+  }
+
+  .app-settings-card {
+    @apply flex items-center justify-between gap-4 rounded-lg border bg-card p-4;
+  }
+
+  .app-settings-card-text {
+    @apply flex min-w-0 flex-col gap-0.5;
+  }
+
+  .app-settings-card-title {
+    @apply text-sm font-medium;
+  }
+
+  .app-settings-card-note {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .app-theme-switch {
+    @apply inline-flex shrink-0 items-center gap-0.5 rounded-md border bg-background p-0.5;
+  }
+
+  .app-theme-option {
+    @apply flex items-center gap-1.5 rounded px-2.5 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground;
+  }
+
+  .app-theme-option-active {
+    @apply bg-accent text-foreground;
+  }
+
+  .app-provider-grid {
+    @apply grid gap-2;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+
+  .app-provider-card {
+    @apply flex min-w-0 items-center gap-2 rounded-lg border bg-card p-3 text-start transition-colors hover:border-ring hover:bg-accent;
+  }
+
+  .app-provider-info {
+    @apply flex min-w-0 flex-1 flex-col;
+  }
+
+  .app-provider-name {
+    @apply truncate text-sm font-medium text-foreground;
+  }
+
+  .app-provider-check {
+    @apply size-4 shrink-0 text-emerald-500;
+  }
+
+  .app-settings-back {
+    @apply -ml-1 flex w-fit items-center gap-1.5 rounded px-1 py-0.5 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground;
+  }
+
+  .app-settings-form {
+    @apply flex flex-col gap-4;
+  }
+
+  .app-field {
+    @apply flex flex-col gap-1.5;
+  }
+
+  .app-field-label {
+    @apply text-xs font-medium text-muted-foreground;
+  }
+
+  .app-field-input {
+    @apply h-9 w-full rounded-md border bg-background px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-ring;
+  }
+
+  .app-field-row {
+    @apply flex items-center gap-0.5 rounded-md border bg-background pr-1 focus-within:border-ring;
+  }
+
+  .app-field-row-input {
+    @apply h-9 min-w-0 flex-1 border-0 bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground;
+  }
+
+  .app-field-eye {
+    @apply flex size-7 shrink-0 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground;
+  }
+
+  .app-field-hint {
+    @apply text-xs text-muted-foreground;
+  }
+
+  .app-settings-actions {
+    @apply flex justify-end gap-2 pt-1;
+  }
+
+  .app-settings-remove {
+    @apply mr-auto text-destructive hover:bg-destructive/10;
+  }
+
+  @media (max-width: 640px) {
+    .app-settings-dialog {
+      grid-template-columns: minmax(0, 1fr);
+      grid-template-rows: auto minmax(0, 1fr);
+    }
+
+    .app-settings-rail {
+      @apply border-r-0 border-b;
+    }
+
+    .app-settings-nav {
+      @apply flex-row overflow-x-auto;
+    }
+
+    .app-settings-nav-item {
+      @apply w-auto;
+    }
   }
 
   .app-approval {

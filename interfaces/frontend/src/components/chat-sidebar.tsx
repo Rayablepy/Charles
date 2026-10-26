@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useAuiState } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { SettingsDialog } from "@/components/settings-dialog";
 import { MemoryUpload } from "@/components/memory-upload";
 import {
   listChats,
@@ -98,7 +98,7 @@ export function ChatSidebar({
     <aside className="app-sidebar">
       <div className="app-sidebar-header">
         <h1 className="app-sidebar-title">Charles</h1>
-        <ThemeToggle />
+        <SettingsDialog />
       </div>
       <nav className="app-chat-list" aria-label="Chats">
         <button

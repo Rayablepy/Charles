@@ -23,7 +23,6 @@ def desktop_binary() -> str:
     )
     return str(local) if local.exists() else "xa11y"
 
-
 async def ensure_desktop_mcp() -> bool:
     global DESKTOP_TOOLS_STATUS, desktop_tools
     if not DESKTOP_ENABLED:
@@ -46,7 +45,7 @@ async def ensure_desktop_mcp() -> bool:
         return False
 
 @tool
-def launch_app(name: str):
+def launch_app(name: str) -> str:
     """Launch a desktop application by name or executable path.
     Args:
         name (str): Application or executable name, for example, 'calc.exe' or 'notepad.exe'.
