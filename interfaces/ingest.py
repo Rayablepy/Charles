@@ -1,4 +1,5 @@
 
+import json
 import os
 import queue
 import sys
@@ -12,6 +13,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -26,6 +28,14 @@ STAGING_PREFIX = "rag-upload-"
 TERMINAL = {"indexed", "already-indexed", "failed"}
 FILE_MAX_BYTES = 512 * 1024
 FILE_LIST_LIMIT = 5000
+PROVIDER_CONFIG_PATH = PROJECT_ROOT / "provider.json"
+
+
+class ProviderConfig(BaseModel):
+    provider: str
+    model: str
+    api_key: str = ""
+
 
 JOBS: dict[str, dict] = {}
 QUEUE: queue.Queue[str] = queue.Queue()
@@ -81,6 +91,20 @@ app.add_middleware(
     allow_methods=["POST", "GET", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+
+@app.post("/provider", status_code=HTTPStatus.OK)
+async def set_provider(config: ProviderConfig) -> dict:
+    provider = config.provider.strip()
+    model = config.model.strip()
+    if not provider or not model:
+        raise HTTPException(status_code=400, detail="provider and model are required")
+
+    payload = {"provider": provider, "model": model, "api_key": config.api_key.strip()}
+    PROVIDER_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    PROVIDER_CONFIG_PATH.write_text(json.dumps(payload), encoding="utf-8")
+    os.chmod(PROVIDER_CONFIG_PATH, 0o600)
+    return {"ok": True, "provider": provider, "model": model}
 
 
 async def stream_file(file: UploadFile, staging: str) -> int:

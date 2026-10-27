@@ -1,5 +1,7 @@
+import json
 import os
 from dotenv import load_dotenv
+from importlib import import_module
 from pathlib import Path
 
 from langchain.chat_models import init_chat_model
@@ -9,31 +11,71 @@ load_dotenv()
 
 #Model constants
 CHAT_MODEL_NAME=os.getenv("CHAT_MODEL_NAME")
-OPENROUTER_CHAT_MODEL_NAME="openrouter/free"
-OPENROUTER_API_KEY=os.getenv("OPENROUTER_API_KEY")
 LOCAL_MODEL_NAME=os.getenv("LOCAL_MODEL_NAME")
 LOCAL_EMBEDDING_MODEL_NAME=os.getenv("LOCAL_EMBEDDING_MODEL_NAME")
-MODEL_BASE_URL = "https://openrouter.ai/api/v1"
 MODEL_PROVIDER = "openai"
 LOCAL_MODEL_BASE_URL = "http://localhost:1234/v1"
+PROVIDER_CONFIG_PATH = Path.home() / ".Charles" / "provider.json"
 
 if LOCAL_MODEL_NAME:
     LOCAL_MODEL= init_chat_model(
         model=LOCAL_MODEL_NAME,
         model_provider=MODEL_PROVIDER,
         base_url=LOCAL_MODEL_BASE_URL,
-        api_key=OPENROUTER_API_KEY, #this can be anything but i am just using the existing api key var
+        api_key="smth", #this can be anything
     )
 else:
     LOCAL_MODEL= None
 
-MAIN_MODEL = ChatOpenRouter(
-    model=OPENROUTER_CHAT_MODEL_NAME,
-    base_url=MODEL_BASE_URL,
-    api_key=OPENROUTER_API_KEY,
-    openrouter_provider={"max_price": {"prompt": 0, "completion": 0}},
-)
+# provider id to model harness
+PROVIDER_HARNESSES = {
+    "azure-openai": "azure_openai",
+    "openai": "openai",
+    "anthropic": "anthropic",
+    "google": "google_genai",
+    "ollama": "ollama",
+    "groq": "groq",
+    "litellm": "litellm",
+    "mistral": "mistralai",
+    "openrouter": "openrouter",
+    "xai": "xai",
+    "deepseek": "deepseek",
+    "nvidia": "nvidia",
+    "together": "together",
+}
 
+# init_chat_model has no harness for these
+PROVIDER_CLASSES = {
+    "databricks": ("databricks_langchain", "ChatDatabricks"),
+    "amazon-nova": ("langchain_amazon_nova", "ChatAmazonNova"),
+}
+
+def build_provider_model():
+    try:
+        config = json.loads(PROVIDER_CONFIG_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+
+    provider = str(config.get("provider") or "").strip()
+    model = str(config.get("model") or "").strip()
+    if not provider or not model:
+        return None
+
+    kwargs = {"model": model}
+    api_key = str(config.get("api_key") or "").strip()
+    if api_key and provider != "ollama":
+        kwargs["api_key"] = api_key
+
+    harness = PROVIDER_HARNESSES.get(provider)
+    if harness:
+        return init_chat_model(model_provider=harness, **kwargs)
+
+    target = PROVIDER_CLASSES.get(provider)
+    if not target:
+        return None
+    module = import_module(target[0])
+    return getattr(module, target[1])(**kwargs)
+MAIN_MODEL= build_provider_model()
 # directory that file system tool has access to (dedicated agent sandbox)
 PROJECT_ROOT = Path.home() / ".Charles"
 
