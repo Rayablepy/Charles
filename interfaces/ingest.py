@@ -142,7 +142,6 @@ async def upload(file: UploadFile | None = File(default=None)) -> dict:
     QUEUE.put(job_id)
     return {"ok": True, "job_id": job_id, "source": source, "status": "queued"}
 
-
 @app.post("/transcribe", status_code=HTTPStatus.OK)
 async def transcribe(file: UploadFile | None = File(default=None)) -> dict:
     if file is None or not file.filename:
@@ -360,7 +359,6 @@ async def delete_project_file(path: str = Query(...)) -> dict:
 @app.delete("/skills/file")
 async def delete_skills_file(path: str = Query(...)) -> dict:
     return delete_scope_file("skills", path)
-
 
 if __name__ == "__main__":
     import uvicorn
