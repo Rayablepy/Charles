@@ -126,3 +126,12 @@ export async function saveProviderConfig(
   });
   if (!response.ok) throw new Error(await readError(response));
 }
+
+export async function verifyProvider(): Promise<boolean> {
+  const response = await fetch(`${INGEST_API_URL}/provider/verify`, {
+    method: "POST",
+  });
+  if (!response.ok) throw new Error(await readError(response));
+  const body = (await response.json()) as { verified?: boolean };
+  return body.verified === true;
+}

@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
-
+from config.settings import build_provider_model
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -106,6 +106,11 @@ async def set_provider(config: ProviderConfig) -> dict:
     os.chmod(PROVIDER_CONFIG_PATH, 0o600)
     return {"ok": True, "provider": provider, "model": model}
 
+@app.post("/provider/verify")
+async def check_provider():
+    if build_provider_model() is None:
+        return {"verified":False}
+    return {"verified":True}
 
 async def stream_file(file: UploadFile, staging: str) -> int:
     size = 0

@@ -15,8 +15,10 @@ LOCAL_MODEL_NAME=os.getenv("LOCAL_MODEL_NAME")
 LOCAL_EMBEDDING_MODEL_NAME=os.getenv("LOCAL_EMBEDDING_MODEL_NAME")
 MODEL_PROVIDER = "openai"
 LOCAL_MODEL_BASE_URL = "http://localhost:1234/v1"
-PROVIDER_CONFIG_PATH = Path.home() / ".Charles" / "provider.json"
 
+PROJECT_ROOT = Path.home() / ".Charles"
+PROVIDER_CONFIG_PATH = PROJECT_ROOT / "provider.json"
+'''
 if LOCAL_MODEL_NAME:
     LOCAL_MODEL= init_chat_model(
         model=LOCAL_MODEL_NAME,
@@ -26,7 +28,7 @@ if LOCAL_MODEL_NAME:
     )
 else:
     LOCAL_MODEL= None
-
+'''
 # provider id to model harness
 PROVIDER_HARNESSES = {
     "azure-openai": "azure_openai",
@@ -75,9 +77,7 @@ def build_provider_model():
         return None
     module = import_module(target[0])
     return getattr(module, target[1])(**kwargs)
-MAIN_MODEL= build_provider_model()
-# directory that file system tool has access to (dedicated agent sandbox)
-PROJECT_ROOT = Path.home() / ".Charles"
+MODEL= build_provider_model()
 
 #(not yet fully implemented) read-only directories the agent can look into but never write to
 READONLY_PATHS: list[Path] = [

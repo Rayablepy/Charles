@@ -2,7 +2,7 @@ import asyncio
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from tools.tools import tool_list
-from config.settings import DB_PATH, LOCAL_MODEL, PROJECT_ROOT, MAIN_MODEL
+from config.settings import DB_PATH, MODEL, PROJECT_ROOT
 from agent.system_prompt import build_system_prompt
 from subagents.web_v2 import build_web_agent
 from subagents.desktop import build_desktop_agent
@@ -66,7 +66,7 @@ def construct_agent(tools, store, checkpointer, subagents):
         },
     )
     return create_deep_agent(
-        model=MAIN_MODEL if LOCAL_MODEL is None else LOCAL_MODEL,
+        model=MODEL,
         system_prompt=build_system_prompt(),
         memory=["/longtermmemories/AGENTS.md","/longtermmemories/USERINFO.md","/longtermmemories/SYSTEM_PROMPT.md"],
         tools=tools,
