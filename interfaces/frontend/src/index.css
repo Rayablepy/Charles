@@ -488,6 +488,14 @@
     @apply border-emerald-500/60 bg-emerald-500/10 hover:border-emerald-500/80 hover:bg-emerald-500/15;
   }
 
+  .app-provider-card-locked {
+    @apply cursor-not-allowed opacity-50 hover:border-border hover:bg-card;
+  }
+
+  .app-provider-notice {
+    @apply text-xs font-medium text-amber-600 dark:text-amber-400;
+  }
+
   .app-provider-info {
     @apply flex min-w-0 flex-1 flex-col;
   }

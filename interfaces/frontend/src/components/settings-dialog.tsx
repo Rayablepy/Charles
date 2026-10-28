@@ -48,13 +48,12 @@ export function SettingsDialog() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<SettingsTab>("appearance");
   const [theme, setTheme] = useState<Theme>(() => readTheme());
-  const [configured, setConfigured] = useState<Record<string, ProviderConfig>>(
-    {},
-  );
-  const [enabledProviderId, setEnabledProviderId] = useState<string | null>(
-    null,
-  );
+  const [configured, setConfigured] = useState<ProviderConfig | null>(null);
+  const [configuredProviderId, setConfiguredProviderId] = useState<
+    string | null
+  >(null);
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
+  const [lockedNotice, setLockedNotice] = useState("");
   const [draftModel, setDraftModel] = useState("");
   const [draftKey, setDraftKey] = useState("");
   const [keyVisible, setKeyVisible] = useState(false);
@@ -65,13 +64,17 @@ export function SettingsDialog() {
     applyTheme(theme);
   }, [theme]);
 
-  const configuredCount = Object.keys(configured).length;
+  const configuredProvider =
+    FEATURED_PROVIDERS.find(
+      (provider) => provider.id === configuredProviderId,
+    ) ?? null;
   const activeProvider =
     FEATURED_PROVIDERS.find((provider) => provider.id === activeProviderId) ??
     null;
-  const activeConfig = activeProvider
-    ? configured[activeProvider.id]
-    : undefined;
+  const activeConfig =
+    activeProvider && activeProvider.id === configuredProviderId
+      ? configured
+      : null;
 
   const canSave =
     activeProvider !== null &&
@@ -85,7 +88,14 @@ export function SettingsDialog() {
   };
 
   const startProvider = (provider: Provider) => {
-    const existing = configured[provider.id];
+    if (configuredProvider && configuredProvider.id !== provider.id) {
+      setLockedNotice(
+        `Remove ${configuredProvider.label} before choosing another provider.`,
+      );
+      return;
+    }
+    const existing = provider.id === configuredProviderId ? configured : null;
+    setLockedNotice("");
     setActiveProviderId(provider.id);
     setDraftModel(existing?.model ?? "");
     setDraftKey(existing?.apiKey ?? "");
@@ -108,14 +118,12 @@ export function SettingsDialog() {
         setSaveError("Provider could not be verified.");
         return;
       }
-      setConfigured((current) => ({
-        ...current,
-        [activeProvider.id]: {
-          model: draftModel.trim(),
-          apiKey: draftKey.trim(),
-        },
-      }));
-      setEnabledProviderId(activeProvider.id);
+      setConfigured({
+        model: draftModel.trim(),
+        apiKey: draftKey.trim(),
+      });
+      setConfiguredProviderId(activeProvider.id);
+      setLockedNotice("");
       closeProvider();
     } catch (error) {
       setSaveError(errorMessage(error));
@@ -126,12 +134,9 @@ export function SettingsDialog() {
 
   const removeProvider = () => {
     if (!activeProvider) return;
-    setConfigured((current) => {
-      const next = { ...current };
-      delete next[activeProvider.id];
-      return next;
-    });
-    if (enabledProviderId === activeProvider.id) setEnabledProviderId(null);
+    setConfigured(null);
+    setConfiguredProviderId(null);
+    setLockedNotice("");
     closeProvider();
   };
 
@@ -177,10 +182,8 @@ export function SettingsDialog() {
               >
                 <Icon className="size-4" />
                 <span>{label}</span>
-                {id === "providers" && configuredCount > 0 && (
-                  <span className="app-settings-nav-count">
-                    {configuredCount}
-                  </span>
+                {id === "providers" && configuredProviderId && (
+                  <span className="app-settings-nav-count">1</span>
                 )}
               </button>
             ))}
@@ -340,29 +343,41 @@ export function SettingsDialog() {
               <header className="app-settings-header">
                 <h2 className="app-settings-title">Providers</h2>
                 <p className="app-settings-note">
-                  Pick a featured provider, then set its model and API key.
+                  Pick one featured provider, then set its model and API key.
                 </p>
               </header>
+              {lockedNotice && (
+                <p
+                  className="app-settings-note app-provider-notice"
+                  role="status"
+                >
+                  {lockedNotice}
+                </p>
+              )}
               <div className="app-provider-grid">
                 {FEATURED_PROVIDERS.map((provider) => {
-                  const saved = configured[provider.id];
+                  const enabled = provider.id === configuredProviderId;
+                  const locked = configuredProviderId !== null && !enabled;
                   return (
                     <button
                       key={provider.id}
                       type="button"
                       className={cn(
                         "app-provider-card",
-                        provider.id === enabledProviderId &&
-                          "app-provider-card-enabled",
+                        enabled && "app-provider-card-enabled",
+                        locked && "app-provider-card-locked",
                       )}
                       onClick={() => startProvider(provider)}
+                      aria-disabled={locked || undefined}
                     >
                       <span className="app-provider-info">
                         <span className="app-provider-name">
                           {provider.label}
                         </span>
                       </span>
-                      {saved && <CheckIcon className="app-provider-check" />}
+                      {enabled && (
+                        <CheckIcon className="app-provider-check" />
+                      )}
                     </button>
                   );
                 })}
