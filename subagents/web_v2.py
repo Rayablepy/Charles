@@ -9,7 +9,7 @@ from fastmcp.client.transports.stdio import StdioTransport
 from langchain.agents import create_agent
 from langchain.mcp import MCPAdapter
 from deepagents import CompiledSubAgent
-from config.settings import LOCAL_MODEL, MAIN_MODEL, WEB_ENABLED
+from config.settings import MODEL, WEB_ENABLED
 
 WEB_TOOLS_STATUS = None
 web_tools: list = []
@@ -46,13 +46,13 @@ async def build_web_agent():
     if not WEB_TOOLS_STATUS or not web_tools:
         return None
     web_graph = create_agent(
-        model=LOCAL_MODEL if LOCAL_MODEL is not None else MAIN_MODEL,
+        model=MODEL,
         name="web_agent",
         tools=web_tools,
         system_prompt="""You are a basic agent meant only to execute tasks on the web explicitly as instructed.
         Do not execute high-risk actions such as sending emails, messages or submitting forms.
         Instead, return a clearly-marked [APPROVAL REQUIRED] block to the user.
-        When passwords and/or credentials are needed, raise a [CREDENTIAL REQUIRED] block to the user. 
+        When passwords and/or credentials are needed, raise a [CREDENTIAL REQUIRED] block to the user.
         Otherwise,return the results of your work.
         """,#Prompt based authentication guard may be swapped out later on
     )
@@ -61,4 +61,3 @@ async def build_web_agent():
         description="Handles any web related tasks the user requires. Ensure instructions are clear and precise. Returns results of its work.",
         runnable=web_graph,
     )
-

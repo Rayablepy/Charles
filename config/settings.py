@@ -5,7 +5,6 @@ from importlib import import_module
 from pathlib import Path
 
 from langchain.chat_models import init_chat_model
-from langchain_openrouter import ChatOpenRouter
 
 load_dotenv()
 
@@ -52,6 +51,8 @@ PROVIDER_CLASSES = {
     "amazon-nova": ("langchain_amazon_nova", "ChatAmazonNova"),
 }
 
+MODEL_PARAM_NAMES = ("temperature", "max_tokens", "timeout", "max_retries", "base_url")
+
 def build_provider_model():
     try:
         config = json.loads(PROVIDER_CONFIG_PATH.read_text(encoding="utf-8"))
@@ -60,24 +61,27 @@ def build_provider_model():
 
     provider = str(config.get("provider") or "").strip()
     model = str(config.get("model") or "").strip()
+    api_key = str(config.get("api_key") or "").strip()
     if not provider or not model:
         return None
+    if not api_key and provider != "ollama":
+        return None
 
-    kwargs = {"model": model}
-    api_key = str(config.get("api_key") or "").strip()
-    if api_key and provider != "ollama":
-        kwargs["api_key"] = api_key
-
+    params = {}
+    if api_key:
+        params["api_key"] = api_key
+    for name in MODEL_PARAM_NAMES:
+        if config.get(name) is not None:
+            params[name] = config[name]
     harness = PROVIDER_HARNESSES.get(provider)
     if harness:
-        return init_chat_model(model_provider=harness, **kwargs)
-
+        return init_chat_model(model=model, model_provider=harness, **params)
     target = PROVIDER_CLASSES.get(provider)
     if not target:
         return None
     module = import_module(target[0])
-    return getattr(module, target[1])(**kwargs)
-MODEL= build_provider_model()
+    return getattr(module, target[1])(model=model, **params)
+MODEL = build_provider_model()
 
 #(not yet fully implemented) read-only directories the agent can look into but never write to
 READONLY_PATHS: list[Path] = [

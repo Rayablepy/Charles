@@ -27,4 +27,5 @@ dependencies = [
     "click>=8.4.2",
     "browser-use>=0.11.13",
     "xa11y>=0.15.3",
+    "langchain-deepseek>=1.1.1",
 ]

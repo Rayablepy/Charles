@@ -24,6 +24,7 @@ import { applyTheme, readTheme, type Theme } from "@/lib/theme";
 import {
   FEATURED_PROVIDERS,
   saveProviderConfig,
+  verifyProvider,
   type Provider,
 } from "@/lib/providers";
 
@@ -49,6 +50,9 @@ export function SettingsDialog() {
   const [theme, setTheme] = useState<Theme>(() => readTheme());
   const [configured, setConfigured] = useState<Record<string, ProviderConfig>>(
     {},
+  );
+  const [enabledProviderId, setEnabledProviderId] = useState<string | null>(
+    null,
   );
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
   const [draftModel, setDraftModel] = useState("");
@@ -99,6 +103,11 @@ export function SettingsDialog() {
         draftModel.trim(),
         draftKey.trim(),
       );
+      const verified = await verifyProvider();
+      if (!verified) {
+        setSaveError("Provider could not be verified.");
+        return;
+      }
       setConfigured((current) => ({
         ...current,
         [activeProvider.id]: {
@@ -106,6 +115,7 @@ export function SettingsDialog() {
           apiKey: draftKey.trim(),
         },
       }));
+      setEnabledProviderId(activeProvider.id);
       closeProvider();
     } catch (error) {
       setSaveError(errorMessage(error));
@@ -121,6 +131,7 @@ export function SettingsDialog() {
       delete next[activeProvider.id];
       return next;
     });
+    if (enabledProviderId === activeProvider.id) setEnabledProviderId(null);
     closeProvider();
   };
 
@@ -339,7 +350,11 @@ export function SettingsDialog() {
                     <button
                       key={provider.id}
                       type="button"
-                      className="app-provider-card"
+                      className={cn(
+                        "app-provider-card",
+                        provider.id === enabledProviderId &&
+                          "app-provider-card-enabled",
+                      )}
                       onClick={() => startProvider(provider)}
                     >
                       <span className="app-provider-info">

@@ -484,6 +484,10 @@
     @apply flex min-w-0 items-center gap-2 rounded-lg border bg-card p-3 text-start transition-colors hover:border-ring hover:bg-accent;
   }
 
+  .app-provider-card-enabled {
+    @apply border-emerald-500/60 bg-emerald-500/10 hover:border-emerald-500/80 hover:bg-emerald-500/15;
+  }
+
   .app-provider-info {
     @apply flex min-w-0 flex-1 flex-col;
   }
