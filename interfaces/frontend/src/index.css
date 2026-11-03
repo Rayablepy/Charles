@@ -706,6 +706,14 @@
     --composer-padding: 8px;
   }
 
+  .aui-composer-locked [data-slot="aui_composer-shell"] {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  .aui-composer-locked .aui-composer-input {
+    @apply cursor-not-allowed;
+  }
+
   .aui-reasoning-root,
   .aui-tool-fallback-root,
   .aui-tool-group-root {

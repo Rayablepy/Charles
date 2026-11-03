@@ -10,7 +10,7 @@ from langchain.agents import create_agent
 from langchain.mcp import MCPAdapter
 from langchain_core.tools import tool
 from deepagents import CompiledSubAgent
-from config.settings import MODEL, DESKTOP_ENABLED
+from config.settings import DESKTOP_ENABLED
 
 DESKTOP_TOOLS_STATUS = None
 desktop_tools: list = []
@@ -64,12 +64,12 @@ def launch_app(name: str) -> str:
     except OSError as error:
         return f"Launch failed for {name}: {error}"
 
-async def build_desktop_agent():
+async def build_desktop_agent(model):
     await ensure_desktop_mcp()
     if not DESKTOP_TOOLS_STATUS or not desktop_tools:
         return None
     desktop_graph = create_agent(
-        model=MODEL,
+        model=model,
         name="desktop_controller_agent",
         tools=[*desktop_tools, launch_app],
         system_prompt="""You are a basic agent meant only to execute tasks on the user's desktop interface explicitly as instructed.

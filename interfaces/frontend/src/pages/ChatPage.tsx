@@ -1,18 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChatRuntimeProvider } from "@/components/chat-runtime";
 import { ChatSidebar, type AppView } from "@/components/chat-sidebar";
 import { AppWelcome } from "@/components/app-welcome";
 import { FileBrowser } from "@/components/file-browser";
 import { InterruptPrompt } from "@/components/assistant-ui/elements/interrupt.aui";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { verifyProvider } from "@/lib/providers";
 
 export default function ChatPage() {
   const [selectedThreadId, setSelectedThreadId] = useState<
     string | undefined
   >(undefined);
   const [view, setView] = useState<AppView>("chat");
+
+  useEffect(() => {
+    verifyProvider().catch(() => {});
+  }, []);
 
   const handleSelectThread = (threadId: string | undefined) => {
     setView("chat");

@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { isAttachmentTranscript } from "@/lib/langgraph-attachments";
+import { useProviderVerified } from "@/lib/providers";
 import {
   ActionBarMorePrimitive,
   ActionBarPrimitive,
@@ -175,6 +176,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
   const { Welcome = ThreadWelcome, Interrupt } = useContext(
     ThreadComponentsContext,
   );
+  const providerReady = useProviderVerified() === true;
 
   return (
     <ThreadPrimitive.Root className="aui-root aui-thread-root bg-background @container flex h-full flex-col">
@@ -213,12 +215,14 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
             )}
           >
             <ThreadScrollToBottom />
-            <ThreadFollowupSuggestions />
+            {providerReady && <ThreadFollowupSuggestions />}
             {Interrupt === undefined ? null : <Interrupt />}
-            <Composer autoFocus={autoFocus} />
-            <AuiIf condition={(s) => isNewChatView(s) && s.composer.isEmpty}>
-              <ThreadSuggestions />
-            </AuiIf>
+            <Composer autoFocus={autoFocus} locked={!providerReady} />
+            {providerReady && (
+              <AuiIf condition={(s) => isNewChatView(s) && s.composer.isEmpty}>
+                <ThreadSuggestions />
+              </AuiIf>
+            )}
           </ThreadPrimitive.ViewportFooter>
         </div>
       </ThreadPrimitive.Viewport>
@@ -377,24 +381,33 @@ const ThreadSuggestionItem: FC = () => {
   );
 };
 
-const Composer: FC<{ autoFocus: boolean }> = ({ autoFocus }) => {
+const Composer: FC<{ autoFocus: boolean; locked: boolean }> = ({
+  autoFocus,
+  locked,
+}) => {
   const busy = useAgentBusy();
   return (
-    <ComposerPrimitive.Root className="aui-composer-root relative flex w-full flex-col">
+    <ComposerPrimitive.Root
+      className={cn(
+        "aui-composer-root relative flex w-full flex-col",
+        locked && "aui-composer-locked",
+      )}
+    >
       <ComposerPrimitive.AttachmentDropzone render={<div data-slot="aui_composer-shell" className="border-foreground/10 focus-within:border-foreground/25 data-[dragging=true]:border-ring flex w-full cursor-text flex-col gap-2 rounded-(--composer-radius) border bg-(--composer-bg) p-(--composer-padding) transition-[border-color] data-[dragging=true]:border-dashed data-[dragging=true]:bg-[color-mix(in_oklab,var(--color-accent)_50%,var(--color-background))]" />}><ComposerAttachments /><ComposerPrimitive.Input
-                      placeholder="Send a message..."
+                      placeholder={locked ? "Configure a provider to start chatting..." : "Send a message..."}
                       className="aui-composer-input caret-primary placeholder:text-muted-foreground/60 max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 outline-none"
                       rows={1}
                       autoFocus={autoFocus}
                       enterKeyHint="send"
                       aria-label="Message input"
-                      submitMode={busy === undefined ? "enter" : "none"}
-                    /><ComposerAction /></ComposerPrimitive.AttachmentDropzone>
+                      disabled={locked}
+                      submitMode={busy === undefined && !locked ? "enter" : "none"}
+                    /><ComposerAction locked={locked} /></ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
   );
 };
 
-const ComposerAction: FC = () => {
+const ComposerAction: FC<{ locked: boolean }> = ({ locked }) => {
   const busy = useAgentBusy();
   return (
     <div className="aui-composer-action-wrapper relative flex items-center justify-between">
@@ -408,11 +421,26 @@ const ComposerAction: FC = () => {
             <ComposerPrimitive.StopDictation render={<TooltipIconButton tooltip="Stop dictation" side="bottom" type="button" variant="ghost" size="icon" className="aui-composer-stop-dictation text-destructive size-7 rounded-full" aria-label="Stop voice input" />}><SquareIcon className="aui-composer-stop-dictation-icon size-3.5 animate-pulse fill-current" /></ComposerPrimitive.StopDictation>
           </AuiIf>
         </AuiIf>
-        <AuiIf
-          condition={(s) => busy === undefined || s.thread.voice !== undefined}
-        >
-          <ComposerPrimitive.Send render={<TooltipIconButton tooltip="Send message" side="bottom" type="button" variant="default" size="icon" className="aui-composer-send size-7 rounded-full" aria-label="Send message" />}><ArrowUpIcon className="aui-composer-send-icon size-4" /></ComposerPrimitive.Send>
-        </AuiIf>
+        {locked ? (
+          <TooltipIconButton
+            tooltip="Configure a provider to send messages"
+            side="bottom"
+            type="button"
+            variant="default"
+            size="icon"
+            disabled
+            className="aui-composer-send size-7 rounded-full"
+            aria-label="Send message"
+          >
+            <ArrowUpIcon className="aui-composer-send-icon size-4" />
+          </TooltipIconButton>
+        ) : (
+          <AuiIf
+            condition={(s) => busy === undefined || s.thread.voice !== undefined}
+          >
+            <ComposerPrimitive.Send render={<TooltipIconButton tooltip="Send message" side="bottom" type="button" variant="default" size="icon" className="aui-composer-send size-7 rounded-full" aria-label="Send message" />}><ArrowUpIcon className="aui-composer-send-icon size-4" /></ComposerPrimitive.Send>
+          </AuiIf>
+        )}
         <AuiIf
           condition={(s) =>
             busy === "approval" && s.thread.voice === undefined
@@ -625,6 +653,7 @@ const UserMessage: FC = () => {
 const UserEditButton: FC = () => {
   const aui = useAui();
   const busy = useAgentBusy();
+  const providerReady = useProviderVerified() === true;
   const disabled = useAuiState(
     (s) =>
       s.message.composer.isEditing ||
@@ -642,7 +671,7 @@ const UserEditButton: FC = () => {
     <TooltipIconButton
       tooltip="Edit"
       className="aui-user-action-edit"
-      disabled={disabled || busy !== undefined}
+      disabled={!providerReady || disabled || busy !== undefined}
       onClick={() => {
         aui.composer.beginEdit();
         aui.composer.setText(text);
@@ -666,21 +695,32 @@ const UserActionBar: FC = () => {
 };
 
 const EditComposer: FC = () => {
+  const providerReady = useProviderVerified() === true;
   return (
     <MessagePrimitive.Root
       data-slot="aui_edit-composer-wrapper"
       className="flex flex-col px-2 [contain-intrinsic-size:auto_200px] [content-visibility:auto]"
     >
-      <ComposerPrimitive.Root className="aui-edit-composer-root border-foreground/10 focus-within:border-foreground/25 ms-auto flex w-full max-w-[85%] cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg) transition-[border-color]">
+      <ComposerPrimitive.Root
+        className={cn(
+          "aui-edit-composer-root border-foreground/10 focus-within:border-foreground/25 ms-auto flex w-full max-w-[85%] cursor-text flex-col rounded-(--composer-radius) border bg-(--composer-bg) transition-[border-color]",
+          !providerReady && "aui-composer-locked",
+        )}
+      >
         <ComposerPrimitive.Input
           className="aui-edit-composer-input text-foreground min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base outline-none"
           autoFocus
+          disabled={!providerReady}
         />
         <div className="aui-edit-composer-footer mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
           <ComposerPrimitive.Cancel render={<Button variant="ghost" size="sm" className="h-8 px-3" />}>Cancel
                               </ComposerPrimitive.Cancel>
-          <ComposerPrimitive.Send render={<Button size="sm" className="h-8 px-3" />}>Update
-                              </ComposerPrimitive.Send>
+          <ComposerPrimitive.Send
+            disabled={!providerReady}
+            render={<Button size="sm" className="h-8 px-3" disabled={!providerReady} />}
+          >
+            Update
+          </ComposerPrimitive.Send>
         </div>
       </ComposerPrimitive.Root>
     </MessagePrimitive.Root>

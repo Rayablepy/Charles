@@ -2,7 +2,7 @@ import asyncio
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from tools.tools import tool_list
-from config.settings import DB_PATH, MODEL, PROJECT_ROOT
+from config.settings import DB_PATH, PROJECT_ROOT, build_provider_model, provider_config_signature
 from agent.system_prompt import build_system_prompt
 from subagents.web_v2 import build_web_agent
 from subagents.desktop import build_desktop_agent
@@ -25,34 +25,48 @@ class DeepAgent:
         self.store = None
         self.agent = None
         self.subagents = []
+        self.model_signature = None
 
     async def build(self):
-        if self.agent is not None:
+        #lock free signature creation of provider config
+        signature = provider_config_signature()
+        #check if model signature in cache is same as curr signature
+        if self.agent is not None and signature == self.model_signature:
             return self.agent
         if self.build_lock is None:
             self.build_lock = asyncio.Lock()
+        #Re-read model signature with lock
         async with self.build_lock:
-            if self.agent is not None:
+            signature = provider_config_signature()
+            if self.agent is not None and signature == self.model_signature:
                 return self.agent
-            self.checkpointer_cm = AsyncSqliteSaver.from_conn_string(DB_PATH)
-            self.checkpointer = await self.checkpointer_cm.__aenter__()
-            self.store_cm = AsyncSqliteStore.from_conn_string(DB_PATH)
-            self.store = await self.store_cm.__aenter__()
-            await self.store.setup()
-            web_agent = await build_web_agent()
-            self.subagents.append(web_agent) if web_agent is not None else None
-            desktop_agent = await build_desktop_agent()
-            self.subagents.append(desktop_agent) if desktop_agent is not None else None
+            if self.checkpointer is None:
+                self.checkpointer_cm = AsyncSqliteSaver.from_conn_string(DB_PATH)
+                self.checkpointer = await self.checkpointer_cm.__aenter__()
+                self.store_cm = AsyncSqliteStore.from_conn_string(DB_PATH)
+                self.store = await self.store_cm.__aenter__()
+                await self.store.setup()
+            model = build_provider_model()
+            if model is None:
+                raise RuntimeError("No model provider configured")
+            subagents = []
+            web_agent = await build_web_agent(model)
+            subagents.append(web_agent) if web_agent is not None else None
+            desktop_agent = await build_desktop_agent(model)
+            subagents.append(desktop_agent) if desktop_agent is not None else None
+            self.subagents = subagents
             self.agent = await asyncio.to_thread(
                 construct_agent,
+                model,
                 tool_list,
                 self.store,
                 self.checkpointer,
                 self.subagents
             )
+            self.model_signature = signature
         return self.agent
 
-def construct_agent(tools, store, checkpointer, subagents):
+def construct_agent(model, tools, store, checkpointer, subagents):
     backend = CompositeBackend(
         default=StateBackend(),
         routes={
@@ -66,7 +80,7 @@ def construct_agent(tools, store, checkpointer, subagents):
         },
     )
     return create_deep_agent(
-        model=MODEL,
+        model=model,
         system_prompt=build_system_prompt(),
         memory=["/longtermmemories/AGENTS.md","/longtermmemories/USERINFO.md","/longtermmemories/SYSTEM_PROMPT.md"],
         tools=tools,

@@ -9,7 +9,7 @@ from fastmcp.client.transports.stdio import StdioTransport
 from langchain.agents import create_agent
 from langchain.mcp import MCPAdapter
 from deepagents import CompiledSubAgent
-from config.settings import MODEL, WEB_ENABLED
+from config.settings import WEB_ENABLED
 
 WEB_TOOLS_STATUS = None
 web_tools: list = []
@@ -41,12 +41,12 @@ async def ensure_web_mcp():
         return False
 
 
-async def build_web_agent():
+async def build_web_agent(model):
     await ensure_web_mcp()
     if not WEB_TOOLS_STATUS or not web_tools:
         return None
     web_graph = create_agent(
-        model=MODEL,
+        model=model,
         name="web_agent",
         tools=web_tools,
         system_prompt="""You are a basic agent meant only to execute tasks on the web explicitly as instructed.

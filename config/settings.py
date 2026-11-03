@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 from dotenv import load_dotenv
@@ -53,6 +54,13 @@ PROVIDER_CLASSES = {
 
 MODEL_PARAM_NAMES = ("temperature", "max_tokens", "timeout", "max_retries", "base_url")
 
+#hash saved provider details
+def provider_config_signature():
+    try:
+        return hashlib.sha256(PROVIDER_CONFIG_PATH.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
 def build_provider_model():
     try:
         config = json.loads(PROVIDER_CONFIG_PATH.read_text(encoding="utf-8"))
@@ -81,7 +89,6 @@ def build_provider_model():
         return None
     module = import_module(target[0])
     return getattr(module, target[1])(model=model, **params)
-MODEL = build_provider_model()
 
 #(not yet fully implemented) read-only directories the agent can look into but never write to
 READONLY_PATHS: list[Path] = [

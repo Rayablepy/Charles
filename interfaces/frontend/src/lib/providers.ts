@@ -1,3 +1,4 @@
+import { useSyncExternalStore } from "react";
 import { INGEST_API_URL } from "@/lib/rag-upload";
 
 export type Provider = {
@@ -127,11 +128,36 @@ export async function saveProviderConfig(
   if (!response.ok) throw new Error(await readError(response));
 }
 
+let providerVerified: boolean | null = null;
+const providerListeners = new Set<() => void>();
+
+function subscribeProvider(listener: () => void) {
+  providerListeners.add(listener);
+  return () => providerListeners.delete(listener);
+}
+
+function setProviderVerified(value: boolean) {
+  if (providerVerified === value) return;
+  providerVerified = value;
+  for (const listener of providerListeners) listener();
+}
+
+export function useProviderVerified(): boolean | null {
+  return useSyncExternalStore(subscribeProvider, () => providerVerified, () => null);
+}
+
 export async function verifyProvider(): Promise<boolean> {
-  const response = await fetch(`${INGEST_API_URL}/provider/verify`, {
-    method: "POST",
-  });
-  if (!response.ok) throw new Error(await readError(response));
-  const body = (await response.json()) as { verified?: boolean };
-  return body.verified === true;
+  try {
+    const response = await fetch(`${INGEST_API_URL}/provider/verify`, {
+      method: "POST",
+    });
+    if (!response.ok) throw new Error(await readError(response));
+    const body = (await response.json()) as { verified?: boolean };
+    const verified = body.verified === true;
+    setProviderVerified(verified);
+    return verified;
+  } catch (error) {
+    setProviderVerified(false);
+    throw error;
+  }
 }
