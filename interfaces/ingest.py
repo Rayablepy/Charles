@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
-from config.settings import build_provider_model
+from config.settings import build_provider_model, find_provider_config, read_provider_configs
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -30,23 +30,29 @@ FILE_MAX_BYTES = 512 * 1024
 FILE_LIST_LIMIT = 5000
 PROVIDER_CONFIG_PATH = PROJECT_ROOT / "provider.json"
 
-
+#pydantic outputs for fastapi endpoints
 class ProviderConfig(BaseModel):
     provider: str
     model: str
     api_key: str = ""
 
+class ProviderSelection(BaseModel):
+    provider: str
 
 JOBS: dict[str, dict] = {}
 QUEUE: queue.Queue[str] = queue.Queue()
 MAX_JOBS = 200
 
-
+#all helper functions
 def remember(job_id: str, job: dict) -> None:
     JOBS[job_id] = job
     while len(JOBS) > MAX_JOBS:
         JOBS.pop(next(iter(JOBS)))
 
+def write_provider_configs(configs: list[dict]) -> None:
+    PROVIDER_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    PROVIDER_CONFIG_PATH.write_text(json.dumps(configs), encoding="utf-8")
+    os.chmod(PROVIDER_CONFIG_PATH, 0o600)
 
 def sanitize_error(text: str) -> str:
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -92,24 +98,57 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.post("/provider", status_code=HTTPStatus.OK)
 async def set_provider(config: ProviderConfig) -> dict:
     provider = config.provider.strip()
     model = config.model.strip()
+    api_key = config.api_key.strip()
     if not provider or not model:
         raise HTTPException(status_code=400, detail="provider and model are required")
-
-    payload = {"provider": provider, "model": model, "api_key": config.api_key.strip()}
-    try:
-        current = json.loads(PROVIDER_CONFIG_PATH.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
-        current = None
-    if current != payload:
-        PROVIDER_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        PROVIDER_CONFIG_PATH.write_text(json.dumps(payload), encoding="utf-8")
-        os.chmod(PROVIDER_CONFIG_PATH, 0o600)
+    configs = read_provider_configs()
+    entry = find_provider_config(configs, provider)
+    if entry is None:
+        entry = {"provider": provider, "model": model, "api_key": api_key, "active": False}
+        configs.append(entry)
+    else:
+        entry["model"] = model
+        if api_key:
+            entry["api_key"] = api_key
+    write_provider_configs(configs)
     return {"ok": True, "provider": provider, "model": model}
+
+@app.get("/providers")
+async def list_providers() -> dict:
+    return {
+        "providers": [
+            {
+                "provider": str(config.get("provider") or "").strip(),
+                "model": str(config.get("model") or "").strip(),
+                "active": config.get("active") is True,
+            }
+            for config in read_provider_configs()
+        ]
+    }
+
+@app.post("/provider/use")
+async def use_provider(selection: ProviderSelection) -> dict:
+    provider = selection.provider.strip()
+    configs = read_provider_configs()
+    if find_provider_config(configs, provider) is None:
+        raise HTTPException(status_code=404, detail="provider is not configured")
+    for config in configs:
+        config["active"] = str(config.get("provider") or "").strip() == provider
+    write_provider_configs(configs)
+    return {"ok": True, "provider": provider}
+
+@app.delete("/provider/{provider}")
+async def delete_provider(provider: str) -> dict:
+    configs = read_provider_configs()
+    entry = find_provider_config(configs, provider)
+    if entry is None:
+        raise HTTPException(status_code=404, detail="provider is not configured")
+    write_provider_configs([config for config in configs if config is not entry])
+    return {"ok": True}
 
 @app.post("/provider/verify")
 async def check_provider():

@@ -61,10 +61,26 @@ def provider_config_signature():
     except OSError:
         return None
 
-def build_provider_model():
+def read_provider_configs():
     try:
-        config = json.loads(PROVIDER_CONFIG_PATH.read_text(encoding="utf-8"))
+        configs = json.loads(PROVIDER_CONFIG_PATH.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(configs, list):
+        return []
+    return [config for config in configs if isinstance(config, dict)]
+
+def find_provider_config(configs, provider_name=None):
+    if provider_name is None:
+        return next((item for item in configs if item.get("active") is True), None)
+    return next(
+        (item for item in configs if str(item.get("provider") or "").strip() == provider_name),
+        None,
+    )
+
+def build_provider_model():
+    config = find_provider_config(read_provider_configs())
+    if config is None:
         return None
 
     provider = str(config.get("provider") or "").strip()
