@@ -9,6 +9,12 @@ export type Provider = {
   keyOptional?: boolean;
 };
 
+export type ConfiguredProvider = {
+  provider: string;
+  model: string;
+  active: boolean;
+};
+
 // Featured LangChain chat integrations; Vertex AI, Cohere, Hugging Face excluded
 export const FEATURED_PROVIDERS: Provider[] = [
   {
@@ -125,6 +131,30 @@ export async function saveProviderConfig(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ provider, model, api_key: apiKey }),
   });
+  if (!response.ok) throw new Error(await readError(response));
+}
+
+export async function listProviders(): Promise<ConfiguredProvider[]> {
+  const response = await fetch(`${INGEST_API_URL}/providers`);
+  if (!response.ok) throw new Error(await readError(response));
+  const body = (await response.json()) as { providers?: ConfiguredProvider[] };
+  return body.providers ?? [];
+}
+
+export async function activateProvider(provider: string): Promise<void> {
+  const response = await fetch(`${INGEST_API_URL}/provider/use`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ provider }),
+  });
+  if (!response.ok) throw new Error(await readError(response));
+}
+
+export async function removeProviderConfig(provider: string): Promise<void> {
+  const response = await fetch(
+    `${INGEST_API_URL}/provider/${encodeURIComponent(provider)}`,
+    { method: "DELETE" },
+  );
   if (!response.ok) throw new Error(await readError(response));
 }
 

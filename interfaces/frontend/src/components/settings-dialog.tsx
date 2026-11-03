@@ -23,17 +23,16 @@ import { cn } from "@/lib/utils";
 import { applyTheme, readTheme, type Theme } from "@/lib/theme";
 import {
   FEATURED_PROVIDERS,
+  listProviders,
+  removeProviderConfig,
   saveProviderConfig,
+  activateProvider,
   verifyProvider,
+  type ConfiguredProvider,
   type Provider,
 } from "@/lib/providers";
 
 type SettingsTab = "appearance" | "providers";
-
-type ProviderConfig = {
-  model: string;
-  apiKey: string;
-};
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -48,12 +47,8 @@ export function SettingsDialog() {
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<SettingsTab>("appearance");
   const [theme, setTheme] = useState<Theme>(() => readTheme());
-  const [configured, setConfigured] = useState<ProviderConfig | null>(null);
-  const [configuredProviderId, setConfiguredProviderId] = useState<
-    string | null
-  >(null);
+  const [providers, setProviders] = useState<ConfiguredProvider[]>([]);
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
-  const [lockedNotice, setLockedNotice] = useState("");
   const [draftModel, setDraftModel] = useState("");
   const [draftKey, setDraftKey] = useState("");
   const [keyVisible, setKeyVisible] = useState(false);
@@ -64,22 +59,24 @@ export function SettingsDialog() {
     applyTheme(theme);
   }, [theme]);
 
-  const configuredProvider =
-    FEATURED_PROVIDERS.find(
-      (provider) => provider.id === configuredProviderId,
-    ) ?? null;
+  useEffect(() => {
+    if (!open) return;
+    listProviders().then(setProviders).catch(() => {});
+  }, [open]);
+
   const activeProvider =
     FEATURED_PROVIDERS.find((provider) => provider.id === activeProviderId) ??
     null;
-  const activeConfig =
-    activeProvider && activeProvider.id === configuredProviderId
-      ? configured
-      : null;
+  const savedConfig =
+    providers.find((provider) => provider.provider === activeProviderId) ??
+    null;
 
   const canSave =
     activeProvider !== null &&
     draftModel.trim().length > 0 &&
-    (activeProvider.keyOptional === true || draftKey.trim().length > 0);
+    (activeProvider.keyOptional === true ||
+      savedConfig !== null ||
+      draftKey.trim().length > 0);
 
   const closeProvider = () => {
     setActiveProviderId(null);
@@ -88,17 +85,11 @@ export function SettingsDialog() {
   };
 
   const startProvider = (provider: Provider) => {
-    if (configuredProvider && configuredProvider.id !== provider.id) {
-      setLockedNotice(
-        `Remove ${configuredProvider.label} before choosing another provider.`,
-      );
-      return;
-    }
-    const existing = provider.id === configuredProviderId ? configured : null;
-    setLockedNotice("");
+    const existing =
+      providers.find((item) => item.provider === provider.id) ?? null;
     setActiveProviderId(provider.id);
     setDraftModel(existing?.model ?? "");
-    setDraftKey(existing?.apiKey ?? "");
+    setDraftKey("");
     setKeyVisible(false);
     setSaveError("");
   };
@@ -113,17 +104,8 @@ export function SettingsDialog() {
         draftModel.trim(),
         draftKey.trim(),
       );
-      const verified = await verifyProvider();
-      if (!verified) {
-        setSaveError("Provider could not be verified.");
-        return;
-      }
-      setConfigured({
-        model: draftModel.trim(),
-        apiKey: draftKey.trim(),
-      });
-      setConfiguredProviderId(activeProvider.id);
-      setLockedNotice("");
+      setProviders(await listProviders());
+      await verifyProvider().catch(() => {});
       closeProvider();
     } catch (error) {
       setSaveError(errorMessage(error));
@@ -132,12 +114,40 @@ export function SettingsDialog() {
     }
   };
 
-  const removeProvider = () => {
-    if (!activeProvider) return;
-    setConfigured(null);
-    setConfiguredProviderId(null);
-    setLockedNotice("");
-    closeProvider();
+  const activateSavedProvider = async () => {
+    if (!activeProvider || !savedConfig || saving) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      await activateProvider(activeProvider.id);
+      const verified = await verifyProvider();
+      setProviders(await listProviders());
+      if (!verified) {
+        setSaveError("Provider could not be verified.");
+        return;
+      }
+      closeProvider();
+    } catch (error) {
+      setSaveError(errorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeProvider = async () => {
+    if (!activeProvider || !savedConfig || saving) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      await removeProviderConfig(activeProvider.id);
+      setProviders(await listProviders());
+      await verifyProvider().catch(() => {});
+      closeProvider();
+    } catch (error) {
+      setSaveError(errorMessage(error));
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -182,8 +192,10 @@ export function SettingsDialog() {
               >
                 <Icon className="size-4" />
                 <span>{label}</span>
-                {id === "providers" && configuredProviderId && (
-                  <span className="app-settings-nav-count">1</span>
+                {id === "providers" && providers.length > 0 && (
+                  <span className="app-settings-nav-count">
+                    {providers.length}
+                  </span>
                 )}
               </button>
             ))}
@@ -285,7 +297,11 @@ export function SettingsDialog() {
                       value={draftKey}
                       onChange={(event) => setDraftKey(event.target.value)}
                       placeholder={
-                        activeProvider.keyOptional ? "Not required" : "sk-..."
+                        activeProvider.keyOptional
+                          ? "Not required"
+                          : savedConfig
+                            ? "Leave blank to keep saved key"
+                            : "sk-..."
                       }
                       autoComplete="off"
                     />
@@ -306,17 +322,18 @@ export function SettingsDialog() {
                   </span>
                 </div>
                 <p className="app-field-hint">
-                  Keys are sent to the local ingest API when you save.
+                  Saving stores the provider. Press Use to make it active.
                 </p>
                 {saveError && (
                   <p className="app-settings-error">{saveError}</p>
                 )}
                 <div className="app-settings-actions">
-                  {activeConfig && (
+                  {savedConfig && (
                     <button
                       type="button"
                       className="app-dialog-btn app-settings-remove"
-                      onClick={removeProvider}
+                      onClick={() => void removeProvider()}
+                      disabled={saving}
                     >
                       Remove
                     </button>
@@ -328,9 +345,23 @@ export function SettingsDialog() {
                   >
                     Cancel
                   </button>
+                  {savedConfig && !savedConfig.active && (
+                    <button
+                      type="button"
+                      className="app-dialog-btn app-dialog-btn-primary"
+                      onClick={() => void activateSavedProvider()}
+                      disabled={saving}
+                    >
+                      Use
+                    </button>
+                  )}
                   <button
                     type="submit"
-                    className="app-dialog-btn app-dialog-btn-primary"
+                    className={cn(
+                      "app-dialog-btn",
+                      (!savedConfig || savedConfig.active) &&
+                        "app-dialog-btn-primary",
+                    )}
                     disabled={!canSave || saving}
                   >
                     {saving ? "Saving…" : "Save"}
@@ -343,21 +374,15 @@ export function SettingsDialog() {
               <header className="app-settings-header">
                 <h2 className="app-settings-title">Providers</h2>
                 <p className="app-settings-note">
-                  Pick one featured provider, then set its model and API key.
+                  Save providers, then open one and press Use to activate it.
                 </p>
               </header>
-              {lockedNotice && (
-                <p
-                  className="app-settings-note app-provider-notice"
-                  role="status"
-                >
-                  {lockedNotice}
-                </p>
-              )}
               <div className="app-provider-grid">
                 {FEATURED_PROVIDERS.map((provider) => {
-                  const enabled = provider.id === configuredProviderId;
-                  const locked = configuredProviderId !== null && !enabled;
+                  const saved = providers.find(
+                    (item) => item.provider === provider.id,
+                  );
+                  const enabled = saved?.active === true;
                   return (
                     <button
                       key={provider.id}
@@ -365,10 +390,8 @@ export function SettingsDialog() {
                       className={cn(
                         "app-provider-card",
                         enabled && "app-provider-card-enabled",
-                        locked && "app-provider-card-locked",
                       )}
                       onClick={() => startProvider(provider)}
-                      aria-disabled={locked || undefined}
                     >
                       <span className="app-provider-info">
                         <span className="app-provider-name">
