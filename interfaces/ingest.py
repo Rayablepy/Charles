@@ -101,9 +101,14 @@ async def set_provider(config: ProviderConfig) -> dict:
         raise HTTPException(status_code=400, detail="provider and model are required")
 
     payload = {"provider": provider, "model": model, "api_key": config.api_key.strip()}
-    PROVIDER_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    PROVIDER_CONFIG_PATH.write_text(json.dumps(payload), encoding="utf-8")
-    os.chmod(PROVIDER_CONFIG_PATH, 0o600)
+    try:
+        current = json.loads(PROVIDER_CONFIG_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        current = None
+    if current != payload:
+        PROVIDER_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        PROVIDER_CONFIG_PATH.write_text(json.dumps(payload), encoding="utf-8")
+        os.chmod(PROVIDER_CONFIG_PATH, 0o600)
     return {"ok": True, "provider": provider, "model": model}
 
 @app.post("/provider/verify")

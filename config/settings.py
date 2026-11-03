@@ -90,11 +90,6 @@ def build_provider_model():
     module = import_module(target[0])
     return getattr(module, target[1])(model=model, **params)
 
-#(not yet fully implemented) read-only directories the agent can look into but never write to
-READONLY_PATHS: list[Path] = [
-    Path.home() / "Documents",
-]
-
 #(not yet fully implemented) high risk tools that require approval
 REQUIRE_APPROVAL: set[str] = {
     "send_email",
