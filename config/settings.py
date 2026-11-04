@@ -130,6 +130,115 @@ RAG_TOP_K = 4
 WEB_SEARCH_MAX_RESULTS = 5
 WEB_FETCH_TIMEOUT_SECONDS = 15
 
+# Browser CLI limits and safety
+
+BROWSER_MAX_OUTPUT = int(os.getenv("AGENT_BROWSER_MAX_OUTPUT", "50000"))
+BROWSER_COMMAND_TIMEOUT = int(os.getenv("AGENT_BROWSER_TIMEOUT", "90"))
+
+BROWSER_EXECUTABLE_ENV = "AGENT_BROWSER_EXECUTABLE_PATH"
+BROWSER_EXECUTABLE_NAMES = (
+    "google-chrome",
+    "chromium",
+    "chromium-browser",
+    "chrome",
+    "msedge",
+    "microsoft-edge",
+    "microsoft-edge-stable",
+    "brave-browser",
+    "opera",
+)
+BROWSER_EXECUTABLE_CANDIDATES = (
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary",
+    "/Applications/Chromium.app/Contents/MacOS/Chromium",
+    "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+    "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+    "/Applications/Vivaldi.app/Contents/MacOS/Vivaldi",
+    "/Applications/Arc.app/Contents/MacOS/Arc",
+    "/Applications/Opera GX.app/Contents/MacOS/Opera",
+    "/Applications/Opera.app/Contents/MacOS/Opera",
+    "/usr/bin/google-chrome",
+    "/usr/bin/chromium",
+    "/usr/bin/chromium-browser",
+    "/snap/bin/chromium",
+    r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+    r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+    r"C:\Program Files\BraveSoftware\Brave-Browser\Application\brave.exe",
+)
+BROWSER_IDLE_TIMEOUT = os.getenv("AGENT_BROWSER_IDLE_TIMEOUT", "3600")
+BROWSER_READ_COMMANDS = {
+    "open",
+    "snapshot",
+    "get",
+    "is",
+    "wait",
+    "back",
+    "forward",
+    "reload",
+    "close",
+    "tab-list",
+}
+
+BROWSER_ACT_COMMANDS = {
+    "click",
+    "dblclick",
+    "fill",
+    "type",
+    "press",
+    "select",
+    "check",
+    "uncheck",
+    "hover",
+    "focus",
+    "scroll",
+    "drag",
+    "tab-new",
+    "tab-select",
+    "tab-close",
+}
+
+BROWSER_FORBIDDEN_FLAGS = {
+    "-p",
+    "-s",
+    "--action-policy",
+    "--allow-file-access",
+    "--allowed-domains",
+    "--args",
+    "--auto-connect",
+    "--ca-cert",
+    "--cdp",
+    "--cdp-headers",
+    "--cdp-url",
+    "--config",
+    "--confirm-actions",
+    "--confirm-interactive",
+    "--device",
+    "--download-path",
+    "--engine",
+    "--enable",
+    "--executable-path",
+    "--extension",
+    "--idle-timeout",
+    "--ignore-https-errors",
+    "--init-script",
+    "--max-output",
+    "--model",
+    "--no-ca-cert",
+    "--profile",
+    "--provider",
+    "--proxy",
+    "--proxy-bypass",
+    "--restore",
+    "--screenshot-dir",
+    "--session",
+    "--session-name",
+    "--state",
+    "--use-system-ca",
+    "--user-agent",
+    "--user-data-dir",
+}
+
 #MCP urls
 BROWSER_OS_URL="http://127.0.0.1:9010/mcp"
 
