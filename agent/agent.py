@@ -1,10 +1,11 @@
 import asyncio
 
+from langchain.agents.middleware import ClearToolUsesEdit,ContextEditingMiddleware
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from tools.tools import tool_list
 from config.settings import DB_PATH, PROJECT_ROOT, build_provider_model, provider_config_signature
 from agent.system_prompt import build_system_prompt
-from subagents.web_v2 import build_web_agent
+from subagents.web_v3 import build_web_agent
 from subagents.desktop import build_desktop_agent
 from deepagents import create_deep_agent, FilesystemPermission
 from deepagents.backends import FilesystemBackend, CompositeBackend, StateBackend, StoreBackend
@@ -87,6 +88,15 @@ def construct_agent(model, tools, store, checkpointer, subagents):
         backend=backend,
         store=store,
         checkpointer=checkpointer,
+        middleware=[
+            ContextEditingMiddleware(
+                edits=[
+                    ClearToolUsesEdit(
+                        trigger=100000,
+                    )
+                ]
+            )
+        ],
         subagents=subagents,
         skills=["/skills/editable","/skills/locked"],
         permissions=[

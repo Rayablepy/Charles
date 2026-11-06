@@ -1,11 +1,12 @@
 import asyncio
 import re
 import shlex
+import shutil
 import sys
+from functools import cache
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from langchain.agents import create_agent
 from langchain.agents.middleware import HumanInTheLoopMiddleware
 from langchain.tools import ToolRuntime, tool
@@ -19,6 +20,12 @@ from config.settings import (
     WEB_ENABLED,
 )
 
+@cache
+def ensure_agent_browser():
+    installed = shutil.which("agent-browser") is not None
+    if not installed:
+        print("agent-browser not installed")
+    return installed
 
 def browser_session(runtime: ToolRuntime) -> str:
     config = runtime.config or {}
@@ -27,7 +34,10 @@ def browser_session(runtime: ToolRuntime) -> str:
     safe_id = re.sub(r"[^A-Za-z0-9_.-]", "-", thread_id)[:80]
     return f"charles-{safe_id}"
 
+
 async def run_browser(command: str, allowed: set[str], runtime: ToolRuntime) -> str:
+    if not ensure_agent_browser():
+        return "agent-browser not installed."
     try:
         parts = shlex.split(command)
     except ValueError as error:
@@ -98,7 +108,7 @@ async def browser_act(command: str, runtime: ToolRuntime) -> str:
 
 
 async def build_web_agent(model, checkpointer=None):
-    if not WEB_ENABLED:
+    if not WEB_ENABLED or not ensure_agent_browser():
         return None
     middleware = []
     if checkpointer is not None:
