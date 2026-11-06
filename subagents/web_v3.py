@@ -39,6 +39,7 @@ async def run_browser(command: str, allowed: set[str], runtime: ToolRuntime) -> 
     if not ensure_agent_browser():
         return "agent-browser not installed."
     try:
+        #split input command into individual command segment strs
         parts = shlex.split(command)
     except ValueError as error:
         return f"Invalid command: {error}"
@@ -51,8 +52,25 @@ async def run_browser(command: str, allowed: set[str], runtime: ToolRuntime) -> 
         return f"Unsupported command '{verb}'. Allowed: {allowed_list}"
 
     for part in parts[1:]:
-        if part.split("=", 1)[0] in BROWSER_FORBIDDEN_FLAGS:
+        flag = part.split("=", 1)[0]
+        #detect forbidden flag in command
+        if flag in BROWSER_FORBIDDEN_FLAGS and not (verb == "snapshot" and flag == "-s"):
             return f"Forbidden flag: {part}"
+    #filter elements in output using the flags
+    snapshot_flags = {
+        "-i",
+        "--interactive",
+        "-c",
+        "--compact",
+        "-s",
+        "--selector",
+        "-d",
+        "--depth",
+        "--delta",
+    }
+    #add filters only if none were provided(optimise token usage)
+    if verb == "snapshot" and not any(part.split("=", 1)[0] in snapshot_flags for part in parts[1:]):
+        parts.extend(["-i", "-c"])
     #agent browser cli start script
     args = [
         "agent-browser",
@@ -91,7 +109,10 @@ async def run_browser(command: str, allowed: set[str], runtime: ToolRuntime) -> 
     if not output:
         return error_output or "agent-browser returned no output."
     if len(output) > BROWSER_MAX_OUTPUT:
-        return output[:BROWSER_MAX_OUTPUT] + "\n[truncated]"
+        cut = output.rfind("\n", 0, BROWSER_MAX_OUTPUT)
+        if cut < 1:
+            cut = BROWSER_MAX_OUTPUT
+        return output[:cut].rstrip() + "\n[truncated at line boundary; narrow the command]"
     return output
 
 
