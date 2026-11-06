@@ -7,3 +7,4 @@ __pycache__
 localAgent_PROJECT_OUTLINE.md
 database/database.db
 .langgraph_api/
+.openidea

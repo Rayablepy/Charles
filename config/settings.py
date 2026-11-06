@@ -130,6 +130,84 @@ RAG_TOP_K = 4
 WEB_SEARCH_MAX_RESULTS = 5
 WEB_FETCH_TIMEOUT_SECONDS = 15
 
+# Browser CLI limits and safety
+
+BROWSER_MAX_OUTPUT = int(os.getenv("AGENT_BROWSER_MAX_OUTPUT", "50000"))
+BROWSER_COMMAND_TIMEOUT = int(os.getenv("AGENT_BROWSER_TIMEOUT", "90"))
+
+BROWSER_IDLE_TIMEOUT = os.getenv("AGENT_BROWSER_IDLE_TIMEOUT", "3600")
+BROWSER_READ_COMMANDS = {
+    "open",
+    "snapshot",
+    "get",
+    "is",
+    "wait",
+    "back",
+    "forward",
+    "reload",
+    "close",
+    "tab-list",
+}
+
+BROWSER_ACT_COMMANDS = {
+    "click",
+    "dblclick",
+    "fill",
+    "type",
+    "press",
+    "select",
+    "check",
+    "uncheck",
+    "hover",
+    "focus",
+    "scroll",
+    "drag",
+    "tab-new",
+    "tab-select",
+    "tab-close",
+}
+
+BROWSER_FORBIDDEN_FLAGS = {
+    "-p",
+    "-s",
+    "--action-policy",
+    "--allow-file-access",
+    "--allowed-domains",
+    "--args",
+    "--auto-connect",
+    "--ca-cert",
+    "--cdp",
+    "--cdp-headers",
+    "--cdp-url",
+    "--config",
+    "--confirm-actions",
+    "--confirm-interactive",
+    "--device",
+    "--download-path",
+    "--engine",
+    "--enable",
+    "--executable-path",
+    "--extension",
+    "--idle-timeout",
+    "--ignore-https-errors",
+    "--init-script",
+    "--max-output",
+    "--model",
+    "--no-ca-cert",
+    "--profile",
+    "--provider",
+    "--proxy",
+    "--proxy-bypass",
+    "--restore",
+    "--screenshot-dir",
+    "--session",
+    "--session-name",
+    "--state",
+    "--use-system-ca",
+    "--user-agent",
+    "--user-data-dir",
+}
+
 #MCP urls
 BROWSER_OS_URL="http://127.0.0.1:9010/mcp"
 
