@@ -52,8 +52,8 @@ class DeepAgent:
             subagents = []
             web_agent = await build_web_agent(model)
             subagents.append(web_agent) if web_agent is not None else None
-            desktop_agent = await build_desktop_agent(model)
-            subagents.append(desktop_agent) if desktop_agent is not None else None
+            #desktop_agent = await build_desktop_agent(model)
+            #subagents.append(desktop_agent) if desktop_agent is not None else None
             self.subagents = subagents
             self.agent = await asyncio.to_thread(
                 construct_agent,
