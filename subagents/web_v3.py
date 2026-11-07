@@ -100,7 +100,7 @@ async def run_browser(command: str, allowed: set[str], runtime: ToolRuntime) -> 
         process.kill()
         await process.wait()
         return "agent-browser timed out."
-
+    #parse errors and output
     output = stdout.decode("utf-8", errors="replace").strip()
     error_output = stderr.decode("utf-8", errors="replace").strip()
     if process.returncode != 0:
