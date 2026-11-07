@@ -125,18 +125,14 @@ EMBEDDING_MODEL_CONTEXT=int(os.getenv("EMBEDDING_MODEL_CONTEXT", 512))
 EMBEDDING_MODEL_CHUNK=int(os.getenv("EMBEDDING_MODEL_CHUNK", 64))
 RAG_TOP_K = 4
 
-# Web tool limits (not yet implemented)
-
-WEB_SEARCH_MAX_RESULTS = 5
-WEB_FETCH_TIMEOUT_SECONDS = 15
-
 # Browser CLI limits and safety
 
-BROWSER_MAX_OUTPUT = int(os.getenv("AGENT_BROWSER_MAX_OUTPUT", "50000"))
-BROWSER_COMMAND_TIMEOUT = int(os.getenv("AGENT_BROWSER_TIMEOUT", "90"))
+BROWSER_MAX_OUTPUT = int(os.getenv("BROWSER_MAX_OUTPUT", "20000"))
+BROWSER_COMMAND_TIMEOUT = int(os.getenv("BROWSER_TIMEOUT", "90"))
 
-BROWSER_IDLE_TIMEOUT = os.getenv("AGENT_BROWSER_IDLE_TIMEOUT", "3600")
+BROWSER_IDLE_TIMEOUT = os.getenv("BROWSER_IDLE_TIMEOUT", "3600")
 BROWSER_READ_COMMANDS = {
+    "read",
     "open",
     "snapshot",
     "get",
@@ -207,9 +203,6 @@ BROWSER_FORBIDDEN_FLAGS = {
     "--user-agent",
     "--user-data-dir",
 }
-
-#MCP urls
-BROWSER_OS_URL="http://127.0.0.1:9010/mcp"
 
 #other env vars
 WEB_ENABLED=os.getenv("WEB_ENABLED")
