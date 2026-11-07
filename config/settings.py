@@ -197,6 +197,8 @@ BROWSER_FORBIDDEN_FLAGS = {
 #sandbox env vars
 #sandbox base port
 SANDBOX_PORT_NUMBER=7000
+#sandbox api key
+SANDBOX_API_KEY="Charles"
 
 #other env vars
 WEB_ENABLED=os.getenv("WEB_ENABLED")

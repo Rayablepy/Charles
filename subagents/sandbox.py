@@ -7,28 +7,30 @@ import tomlkit
 from opensandbox import SandboxSync
 from langchain_opensandbox import OpenSandboxBackend
 from opensandbox.config.connection_sync import ConnectionConfigSync
-from config.settings import SANDBOX_PORT_NUMBER
+from config.settings import SANDBOX_PORT_NUMBER, SANDBOX_API_KEY
 
 CONNECTIONCONFIG = ConnectionConfigSync(
     domain=f"127.0.0.1:{SANDBOX_PORT_NUMBER}",
     protocol="http",
+    api_key=SANDBOX_API_KEY,
 )
 def build_sandbox_config():
     try:
-        subprocess.run(["uvx","opensandbox-server", "init-config","~/.sandbox.toml", "--example","docker"])
-        with open("~/.sandbox.toml","r",encoding="utf-8") as f:
+        config_path=str(Path.home() / ".sandbox.toml")
+        subprocess.run(["uvx","opensandbox-server", "init-config",config_path, "--example","docker"])
+        with open(config_path,"r",encoding="utf-8") as f:
             config=tomlkit.load(f)
         config["server"]["port"]=SANDBOX_PORT_NUMBER
-        config["server"]["api_key"]="Charles"
-        with open("config.toml", "w", encoding="utf-8") as f:
+        config["server"]["api_key"]=SANDBOX_API_KEY
+        with open(config_path, "w", encoding="utf-8") as f:
             tomlkit.dump(config, f)
     except:
         raise RuntimeError("Error encountered building sandbox config")
 
 def ensure_sandbox():
-    build_sandbox_config()
     try:
-        subprocess.run(["uvx","opensandbox-server"])
+        build_sandbox_config()
+        subprocess.Popen(["uvx","opensandbox-server"])
     except:
         raise RuntimeError("Sandbox failed to start")
     try:
