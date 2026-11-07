@@ -419,6 +419,7 @@ async def rename_project_file(path: str = Query(...), name: str = Query(...)) ->
     return rename_scope_file("project", path, name)
 
 
+
 @app.post("/skills/file/rename")
 async def rename_skills_file(path: str = Query(...), name: str = Query(...)) -> dict:
     return rename_scope_file("skills", path, name)
