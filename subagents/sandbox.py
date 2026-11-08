@@ -1,6 +1,13 @@
+import json
 import sys
+import time
 from pathlib import Path
+import urllib
+import signal
 import subprocess
+import os
+
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import tomlkit
@@ -38,18 +45,37 @@ def build_sandbox_config(force=False):
         config_path.chmod(0o600)
     except Exception as error:
         raise RuntimeError("Error encountered building sandbox config") from error
+def check_sandbox_server():
+    try:
+        with urllib.request.urlopen(
+            f"http://127.0.0.1:{SANDBOX_PORT_NUMBER}/health",
+            timeout=1,
+        ) as res:
+            return json.load(res).get("status")=="healthy"
+    except Exception:
+        return False
 
-def ensure_sandbox():
+def kill_sandbox_server(process):
+    if process is None or process.poll() is None:
+        return
+    os.killpg(os.getpid(process.pid),signal.SIGTERM) if os.name=="nt" else subprocess.run(["taskkill","/PID",str(process.pid),"/T","/F"],capture_output=True,timeout=10)
     try:
-        build_sandbox_config()
-        subprocess.Popen(["uvx","opensandbox-server", "--config",CONFIG_PATH])
-    except:
-        raise RuntimeError("Sandbox failed to start")
-    try:
-        sandbox=SandboxSync.create("python:3.12",connection_config=CONNECTION_CONFIG)
-        backend=OpenSandboxBackend(sandbox=sandbox,timeout=100)
-    except:
-        raise RuntimeError("Sandbox failed to start")
-    return
-if __name__ == "__main__":
-    ensure_sandbox()
+        process.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        process.kill()
+
+def start_sandbox_server():
+    build_sandbox_config()
+    if check_sandbox_server():
+        return
+    process=subprocess.Popen(["uvx", "opensandbox-server", "--config", CONFIG_PATH])
+    timeout=time.monotonic() +30
+    while time.monotonic() < timeout:
+        if check_sandbox_server():
+            return process
+        if process.poll() is not None:
+            raise RuntimeError("Sandbox failed to start")
+    kill_sandbox_server(process)
+    raise RuntimeError("Sandbox failed to start")
+
+
