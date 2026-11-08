@@ -1,12 +1,13 @@
 import json
 import sys
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 import urllib
 import signal
 import subprocess
 import os
-
+import asyncio
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -78,4 +79,28 @@ def start_sandbox_server():
     kill_sandbox_server(process)
     raise RuntimeError("Sandbox failed to start")
 
+
+@asynccontextmanager
+async def sandbox():
+    process=await asyncio.to_thread(start_sandbox_server)
+    sandbox=None
+    try:
+        sandbox = await asyncio.to_thread(SandboxSync.create,
+            "python:3.12",
+            connection_config=CONNECTION_CONFIG,
+        )
+        yield OpenSandboxBackend(sandbox=sandbox,timeout=30)
+    finally:
+        try:
+            if sandbox is not None:
+                await asyncio.to_thread(sandbox.destroy)
+        finally:
+            await asyncio.to_thread(kill_sandbox_server,process)
+
+def sandbox_config(config,backend):
+    config=dict(config or {})
+    configurable = dict(config.get("configurable", {}))
+    configurable["sandbox_backend"] = backend
+    config["configurable"] = configurable
+    return config
 
