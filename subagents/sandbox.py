@@ -8,8 +8,10 @@ import signal
 import subprocess
 import os
 import asyncio
+from langchain_core.runnables import RunnableLambda
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from deepagents import CompiledSubAgent
 from langchain.tools import ToolRuntime, tool
 from langchain.agents import create_agent
 import tomlkit
@@ -28,7 +30,7 @@ def build_sandbox_config(force=False):
     config_path = Path(CONFIG_PATH)
     try:
         if force or not config_path.is_file():
-            config_cmd = ["uvx","opensandbox-server","init-config",CONFIG_PATH,"--example","docker",]
+            config_cmd = ["uvx","opensandbox-server","init-config",CONFIG_PATH,"--example","docker"]
             if force:
                 config_cmd.append("--force")
             subprocess.run(
@@ -58,9 +60,9 @@ def check_sandbox_server():
         return False
 
 def kill_sandbox_server(process):
-    if process is None or process.poll() is None:
+    if process is None or process.poll() is not None:
         return
-    os.killpg(os.getpid(process.pid),signal.SIGTERM) if os.name=="nt" else subprocess.run(["taskkill","/PID",str(process.pid),"/T","/F"],capture_output=True,timeout=10)
+    os.killpg(os.getpgid(process.pid),signal.SIGTERM) if os.name!="nt" else subprocess.run(["taskkill","/PID",str(process.pid),"/T","/F"],capture_output=True,timeout=10)
     try:
         process.wait(timeout=10)
     except subprocess.TimeoutExpired:
@@ -69,8 +71,8 @@ def kill_sandbox_server(process):
 def start_sandbox_server():
     build_sandbox_config()
     if check_sandbox_server():
-        return
-    process=subprocess.Popen(["uvx", "opensandbox-server", "--config", CONFIG_PATH])
+        raise RuntimeError("Sandbox server already up")
+    process=subprocess.Popen(["uvx", "opensandbox-server", "--config", CONFIG_PATH],start_new_session=(os.name!="nt"))
     timeout=time.monotonic() +30
     while time.monotonic() < timeout:
         if check_sandbox_server():
@@ -100,7 +102,7 @@ async def sandbox():
 
 def sandbox_config(config,backend):
     config=dict(config or {})
-    configurable = dict(config.get("configurable", {}))
+    configurable = dict(config.get("configurable")or{})
     configurable["sandbox_backend"] = backend
     config["configurable"] = configurable
     return config
@@ -117,7 +119,7 @@ async def sandbox_execute(command: str,runtime:ToolRuntime)->str:
     except Exception as e:
         return f"Sandbox command failed: {e}"
     return f"exit_code={res.exit_code}\n{res.output}".strip()
-def build_sandbox_agent(model):
+async def build_sandbox_agent(model):
     graph = create_agent(
         model=model,
         name="sandbox_agent",
@@ -128,4 +130,12 @@ def build_sandbox_agent(model):
         Return a concise summary of the result.
         Files in the sandbox are deleted when the task ends
         """
+    )
+    async def run(state,config):
+        async with sandbox() as backend:
+            return await graph.ainvoke(state,sandbox_config(config,backend))
+    return CompiledSubAgent(
+        name="sandbox_agent",
+        description="Runs isolated shell and file tasks in a temporary Linux sandbox.",
+        runnable=RunnableLambda(run)
     )
