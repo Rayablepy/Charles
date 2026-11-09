@@ -8,9 +8,10 @@ import signal
 import subprocess
 import os
 import asyncio
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from langchain.tools import ToolRuntime, tool
+from langchain.agents import create_agent
 import tomlkit
 from opensandbox import SandboxSync
 from langchain_opensandbox import OpenSandboxBackend
@@ -104,3 +105,27 @@ def sandbox_config(config,backend):
     config["configurable"] = configurable
     return config
 
+@tool
+async def sandbox_execute(command: str,runtime:ToolRuntime)->str:
+    """Run a shell command inside the sandbox"""
+    configurable=(runtime.config or {}).get("configurable")or {}
+    backend=configurable.get("sandbox_backend")
+    if not backend:
+        return "Sandbox backend not available"
+    try:
+        res=await backend.aexecute(command)
+    except Exception as e:
+        return f"Sandbox command failed: {e}"
+    return f"exit_code={res.exit_code}\n{res.output}".strip()
+def build_sandbox_agent(model):
+    graph = create_agent(
+        model=model,
+        name="sandbox_agent",
+        tools=[sandbox_execute],
+        system_prompt="""
+        You run shell commands in an isolated Linux sandbox.
+        Use sandbox_execute for commands.
+        Return a concise summary of the result.
+        Files in the sandbox are deleted when the task ends
+        """
+    )
