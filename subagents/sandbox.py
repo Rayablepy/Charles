@@ -3,7 +3,7 @@ import sys
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
-import urllib
+import urllib.request
 import signal
 import subprocess
 import os
@@ -100,10 +100,10 @@ async def sandbox():
         finally:
             await asyncio.to_thread(kill_sandbox_server,process)
 
-def sandbox_config(config,backend):
+def sandbox_config(config,session):
     config=dict(config or {})
     configurable = dict(config.get("configurable")or{})
-    configurable["sandbox_backend"] = backend
+    configurable["sandbox_session"] = session
     config["configurable"] = configurable
     return config
 
@@ -111,23 +111,46 @@ def sandbox_config(config,backend):
 async def sandbox_execute(command: str,runtime:ToolRuntime,offset:int=0,limit:int=1000,timeout:int=30)->str:
     """
     Run a shell command inside the sandbox
+    Args:
+        command(str): The command to run
+        offset(int): The offset to format the command output with(defaulted to 0)
+        limit(int): The limit of how long the command output can be(defaulted to 1000)
+        timeout(int):Timeouts on commands(defaulted to 30 seconds)
+    Returns:
+        str: command output
     """
+    if offset<0:
+        return "offset must be > or = to 0"
+    if limit <= 0:
+        return "limit must be > 0"
+    if limit > 10000:
+        return "Limit too high"
+    if timeout < 0:
+        return "timeout must be > or = 0"
     configurable=(runtime.config or {}).get("configurable")or {}
-    backend=configurable.get("sandbox_backend")
-    if not backend:
+    session=configurable.get("sandbox_session")
+    if not session:
         return "Sandbox backend not available"
-    try:
-        res=await backend.aexecute(command,timeout=timeout)
-    except Exception as e:
-        return f"Sandbox command failed: {e}"
-    output=res.output
+    if offset>0 and session["command"]==command:
+        output=session["output"]
+        exit_code=session["exit_code"]
+    else:
+        try:
+            res=await session["backend"].aexecute(command,timeout=timeout)
+        except Exception as e:
+            return f"Sandbox command failed: {e}"
+        output=res.output
+        exit_code=res.exit_code
+        session["command"]=command
+        session["output"]=output
+        session["exit_code"]=exit_code
     end = min(offset+limit,len(output))
     window=output[offset:end]
     return (
-        f"exit_code={res.exit_code}"
-        f"offset={offset}, limit={limit}, total_characters={len(output)}"
+        f"exit_code={exit_code} "
+        f"offset={offset}, limit={limit}, total_characters={len(output)} "
         f"has_more?={(str(end<len(output))).lower()}\n"
-        f"{window}"
+        f"{window} "
     )
 async def build_sandbox_agent(model):
     graph = create_agent(
@@ -143,7 +166,13 @@ async def build_sandbox_agent(model):
     )
     async def run(state,config):
         async with sandbox() as backend:
-            return await graph.ainvoke(state,sandbox_config(config,backend))
+            session={
+                "backend":backend,
+                "command":None,
+                "output":"",
+                "exit_code":None,
+            }
+            return await graph.ainvoke(state,sandbox_config(config,session))
     return CompiledSubAgent(
         name="sandbox_agent",
         description="Runs isolated shell and file tasks in a temporary Linux sandbox.",
