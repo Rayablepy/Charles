@@ -203,5 +203,5 @@ SANDBOX_API_KEY="Charles"
 CONFIG_PATH=str(Path.home() / ".sandbox.toml")
 
 #other env vars
-WEB_ENABLED=os.getenv("WEB_ENABLED")
-DESKTOP_ENABLED=os.getenv("DESKTOP_ENABLED")
+WEB_ENABLED={"0":False,"1":True}[str(os.getenv("WEB_ENABLED",0)).strip().lower()]
+SANDBOX_ENABLED={"0":False,"1":True}[str(os.getenv("WEB_ENABLED",0)).strip().lower()]
