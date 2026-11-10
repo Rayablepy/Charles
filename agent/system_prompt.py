@@ -21,7 +21,7 @@ TOOL_NOTES = {
 
 SUBAGENT_NOTES = {
     "web_agent": "Internet/browser tasks.",
-    "desktop_controller_agent": "Desktop interface and non-browser window tasks.",
+    "sandbox_agent": "Sandboxed execution of shell and file tasks.",
 }
 
 BACKEND_MIDDLEWARE_NOTES = """

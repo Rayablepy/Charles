@@ -71,7 +71,7 @@ def kill_sandbox_server(process):
 def start_sandbox_server():
     build_sandbox_config()
     if check_sandbox_server():
-        raise RuntimeError("Sandbox server already up")
+        return
     process=subprocess.Popen(["uvx", "opensandbox-server", "--config", CONFIG_PATH],start_new_session=(os.name!="nt"))
     timeout=time.monotonic() +30
     while time.monotonic() < timeout:
@@ -108,17 +108,27 @@ def sandbox_config(config,backend):
     return config
 
 @tool
-async def sandbox_execute(command: str,runtime:ToolRuntime)->str:
-    """Run a shell command inside the sandbox"""
+async def sandbox_execute(command: str,runtime:ToolRuntime,offset:int=0,limit:int=1000,timeout:int=30)->str:
+    """
+    Run a shell command inside the sandbox
+    """
     configurable=(runtime.config or {}).get("configurable")or {}
     backend=configurable.get("sandbox_backend")
     if not backend:
         return "Sandbox backend not available"
     try:
-        res=await backend.aexecute(command)
+        res=await backend.aexecute(command,timeout=timeout)
     except Exception as e:
         return f"Sandbox command failed: {e}"
-    return f"exit_code={res.exit_code}\n{res.output}".strip()
+    output=res.output
+    end = min(offset+limit,len(output))
+    window=output[offset:end]
+    return (
+        f"exit_code={res.exit_code}"
+        f"offset={offset}, limit={limit}, total_characters={len(output)}"
+        f"has_more?={(str(end<len(output))).lower()}\n"
+        f"{window}"
+    )
 async def build_sandbox_agent(model):
     graph = create_agent(
         model=model,
