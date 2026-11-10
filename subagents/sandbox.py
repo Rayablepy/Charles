@@ -18,6 +18,7 @@ import tomlkit
 from opensandbox import SandboxSync
 from langchain_opensandbox import OpenSandboxBackend
 from opensandbox.config.connection_sync import ConnectionConfigSync
+from opensandbox.exceptions import SandboxTimeoutException
 from config.settings import SANDBOX_PORT_NUMBER, SANDBOX_API_KEY,CONFIG_PATH
 
 CONNECTION_CONFIG = ConnectionConfigSync(
@@ -25,6 +26,8 @@ CONNECTION_CONFIG = ConnectionConfigSync(
     protocol="http",
     api_key=SANDBOX_API_KEY,
 )
+
+SANDBOX_LOCK = asyncio.Lock()
 
 def build_sandbox_config(force=False):
     config_path = Path(CONFIG_PATH)
@@ -85,20 +88,21 @@ def start_sandbox_server():
 
 @asynccontextmanager
 async def sandbox():
-    process=await asyncio.to_thread(start_sandbox_server)
-    sandbox=None
-    try:
-        sandbox = await asyncio.to_thread(SandboxSync.create,
-            "python:3.12",
-            connection_config=CONNECTION_CONFIG,
-        )
-        yield OpenSandboxBackend(sandbox=sandbox,timeout=30)
-    finally:
+    async with SANDBOX_LOCK:
+        process=await asyncio.to_thread(start_sandbox_server)
+        sandbox=None
         try:
-            if sandbox is not None:
-                await asyncio.to_thread(sandbox.destroy)
+            sandbox = await asyncio.to_thread(SandboxSync.create,
+                "python:3.12",
+                connection_config=CONNECTION_CONFIG,
+            )
+            yield OpenSandboxBackend(sandbox=sandbox,timeout=30)
         finally:
-            await asyncio.to_thread(kill_sandbox_server,process)
+            try:
+                if sandbox is not None:
+                    await asyncio.to_thread(sandbox.destroy)
+            finally:
+                await asyncio.to_thread(kill_sandbox_server,process)
 
 def sandbox_config(config,session):
     config=dict(config or {})
@@ -110,21 +114,22 @@ def sandbox_config(config,session):
 @tool
 async def sandbox_execute(command: str,runtime:ToolRuntime,offset:int=0,limit:int=1000,timeout:int=30)->str:
     """
-    Run a shell command inside the sandbox
+    Run a shell command and return a character window of its output.
     Args:
-        command(str): The command to run
-        offset(int): The offset to format the command output with(defaulted to 0)
-        limit(int): The limit of how long the command output can be(defaulted to 1000)
-        timeout(int):Timeouts on commands(defaulted to 30 seconds)
+        command: Command to run.
+        offset: Character offset into the output.
+        limit: Maximum characters to return.
+        timeout: Server-side timeout in seconds; 0 disables it.
+    Reusing the same command with offset > 0 reads cached output.
+    offset=0 reruns the command.
     Returns:
-        str: command output
+        str: Command output
     """
     if offset<0:
         return "offset must be > or = to 0"
     if limit <= 0:
         return "limit must be > 0"
-    if limit > 10000:
-        return "Limit too high"
+    limit = min(limit, 10000)
     if timeout < 0:
         return "timeout must be > or = 0"
     configurable=(runtime.config or {}).get("configurable")or {}
@@ -137,6 +142,10 @@ async def sandbox_execute(command: str,runtime:ToolRuntime,offset:int=0,limit:in
     else:
         try:
             res=await session["backend"].aexecute(command,timeout=timeout)
+        except SandboxTimeoutException:
+            if timeout:
+                return f"Sandbox command timed out after {timeout} seconds"
+            return "Sandbox command timed out"
         except Exception as e:
             return f"Sandbox command failed: {e}"
         output=res.output
@@ -148,9 +157,10 @@ async def sandbox_execute(command: str,runtime:ToolRuntime,offset:int=0,limit:in
     window=output[offset:end]
     return (
         f"exit_code={exit_code} "
-        f"offset={offset}, limit={limit}, total_characters={len(output)} "
-        f"has_more?={(str(end<len(output))).lower()}\n"
-        f"{window} "
+        f"offset={offset} limit={limit} "
+        f"total_characters={len(output)} "
+        f"has_more={str(end < len(output)).lower()}\n"
+        f"{window}"
     )
 async def build_sandbox_agent(model):
     graph = create_agent(
