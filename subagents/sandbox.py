@@ -8,6 +8,7 @@ import signal
 import subprocess
 import os
 import asyncio
+from typing import Any, TypedDict
 from langchain_core.runnables import RunnableLambda
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
@@ -28,6 +29,9 @@ CONNECTION_CONFIG = ConnectionConfigSync(
 )
 
 SANDBOX_LOCK = asyncio.Lock()
+#save sandbox details with this base class
+class SandboxContext(TypedDict):
+    sandbox_session: dict[str, Any]
 
 def build_sandbox_config(force=False):
     config_path = Path(CONFIG_PATH)
@@ -104,15 +108,8 @@ async def sandbox():
             finally:
                 await asyncio.to_thread(kill_sandbox_server,process)
 
-def sandbox_config(config,session):
-    config=dict(config or {})
-    configurable = dict(config.get("configurable")or{})
-    configurable["sandbox_session"] = session
-    config["configurable"] = configurable
-    return config
-
 @tool
-async def sandbox_execute(command: str,runtime:ToolRuntime,offset:int=0,limit:int=1000,timeout:int=30)->str:
+async def sandbox_execute(command: str,runtime:ToolRuntime[SandboxContext],offset:int=0,limit:int=1000,timeout:int=30)->str:
     """
     Run a shell command and return a character window of its output.
     Args:
@@ -132,8 +129,7 @@ async def sandbox_execute(command: str,runtime:ToolRuntime,offset:int=0,limit:in
     limit = min(limit, 10000)
     if timeout < 0:
         return "timeout must be > or = 0"
-    configurable=(runtime.config or {}).get("configurable")or {}
-    session=configurable.get("sandbox_session")
+    session=(runtime.context or {}).get("sandbox_session")
     if not session:
         return "Sandbox backend not available"
     if offset>0 and session["command"]==command:
@@ -167,6 +163,7 @@ async def build_sandbox_agent(model):
         model=model,
         name="sandbox_agent",
         tools=[sandbox_execute],
+        context_schema=SandboxContext,
         system_prompt="""
         You run shell commands in an isolated Linux sandbox.
         Use sandbox_execute for commands.
@@ -182,7 +179,7 @@ async def build_sandbox_agent(model):
                 "output":"",
                 "exit_code":None,
             }
-            return await graph.ainvoke(state,sandbox_config(config,session))
+            return await graph.ainvoke(state,config,context={"sandbox_session":session})
     return CompiledSubAgent(
         name="sandbox_agent",
         description="Runs isolated shell and file tasks in a temporary Linux sandbox.",

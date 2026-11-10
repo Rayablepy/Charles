@@ -1,3 +1,4 @@
+import shutil
 from langchain_core.tools import tool
 from subagents.sandbox import check_sandbox_server
 from subagents.web_v3 import ensure_agent_browser
@@ -29,11 +30,11 @@ async def check_subagent_status()->dict[str,bool]:
         "sandbox_agent": False,
                        }
     web_status = ensure_agent_browser()
-    sandbox_status = check_sandbox_server()
+    sandbox_status = check_sandbox_server() or shutil.which("uvx") is not None
     if web_status: 
         subagent_status["web_agent"] = True
     if sandbox_status:
-        subagent_status["sandbox"] = True
+        subagent_status["sandbox_agent"] = True
     return subagent_status
 
 check_tool_list=[check_tool_status,check_subagent_status]
