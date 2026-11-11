@@ -496,8 +496,21 @@
     @apply truncate text-sm font-medium text-foreground;
   }
 
-  .app-provider-check {
-    @apply size-4 shrink-0 text-emerald-500;
+  .app-provider-status {
+    @apply size-4 shrink-0 rounded-full border border-muted-foreground/40;
+  }
+
+  .app-provider-status-configured {
+    @apply border-blue-500;
+    background: linear-gradient(
+      to right,
+      var(--color-blue-500) 50%,
+      transparent 50%
+    );
+  }
+
+  .app-provider-status-selected {
+    @apply border-emerald-500 bg-emerald-500;
   }
 
   .app-settings-back {

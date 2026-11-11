@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import {
   ArrowLeftIcon,
-  CheckIcon,
   EyeIcon,
   EyeOffIcon,
   MoonIcon,
@@ -321,9 +320,6 @@ export function SettingsDialog() {
                     </button>
                   </span>
                 </div>
-                <p className="app-field-hint">
-                  Saving stores the provider. Press Use to make it active.
-                </p>
                 {saveError && (
                   <p className="app-settings-error">{saveError}</p>
                 )}
@@ -373,9 +369,6 @@ export function SettingsDialog() {
             <div className="app-settings-panel">
               <header className="app-settings-header">
                 <h2 className="app-settings-title">Providers</h2>
-                <p className="app-settings-note">
-                  Save providers, then open one and press Use to activate it.
-                </p>
               </header>
               <div className="app-provider-grid">
                 {FEATURED_PROVIDERS.map((provider) => {
@@ -398,9 +391,21 @@ export function SettingsDialog() {
                           {provider.label}
                         </span>
                       </span>
-                      {enabled && (
-                        <CheckIcon className="app-provider-check" />
-                      )}
+                      <span
+                        className={cn(
+                          "app-provider-status",
+                          saved && !enabled && "app-provider-status-configured",
+                          enabled && "app-provider-status-selected",
+                        )}
+                        aria-hidden="true"
+                      />
+                      <span className="sr-only">
+                        {enabled
+                          ? "Selected"
+                          : saved
+                            ? "Configured"
+                            : "Not configured"}
+                      </span>
                     </button>
                   );
                 })}
