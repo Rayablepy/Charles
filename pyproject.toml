@@ -28,4 +28,6 @@ dependencies = [
     "browser-use>=0.11.13",
     "xa11y>=0.15.3",
     "langchain-deepseek>=1.1.1",
+    "langchain-sandbox-opensandbox>=0.1.2",
+    "tomlkit>=0.15.2",
 ]

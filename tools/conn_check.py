@@ -1,27 +1,20 @@
 from langchain_core.tools import tool
+from config.settings import SANDBOX_ENABLED
+from subagents.sandbox import sandbox_available
 from subagents.web_v3 import ensure_agent_browser
-from subagents.desktop import ensure_desktop_mcp
 
 #May have actual checks on connection-bound tools in the future, tbc
 @tool
 def check_tool_status()->dict[str,bool]:
-    """Use this tool to check the tools currently available to you.
+    """Use this tool to check the availability of tools that are not available by default.
     Args:
         None
     Returns:
-        dict[str,bool]: The tools currently available to you."""
+        dict[str,bool]: The non-default tools currently available to you."""
     tool_status = {
     "rag": True,
     "filesystem": True,
     "todo": True,
-    #Include tools provided by langchain middleware
-    "ls": True,
-    "read_file": True,
-    "write_file": True,
-    "edit_file": True,
-    "glob": True,
-    "grep": True,
-    "write_todos": True
     }
     return tool_status
 
@@ -34,14 +27,14 @@ async def check_subagent_status()->dict[str,bool]:
         dict[str,bool]: The subagents available to you.`"""
     subagent_status = {
         "web_agent": False,
-        "desktop_controller_agent": False,
+        "sandbox_agent": False,
                        }
     web_status = ensure_agent_browser()
-    desktop_status = await ensure_desktop_mcp()
+    sandbox_status = SANDBOX_ENABLED and sandbox_available()
     if web_status: 
         subagent_status["web_agent"] = True
-    if desktop_status:
-        subagent_status["desktop_controller_agent"] = True
+    if sandbox_status:
+        subagent_status["sandbox_agent"] = True
     return subagent_status
 
 check_tool_list=[check_tool_status,check_subagent_status]

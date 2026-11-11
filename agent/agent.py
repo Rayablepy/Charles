@@ -6,7 +6,7 @@ from tools.tools import tool_list
 from config.settings import DB_PATH, PROJECT_ROOT, build_provider_model, provider_config_signature
 from agent.system_prompt import build_system_prompt
 from subagents.web_v3 import build_web_agent
-from subagents.desktop import build_desktop_agent
+from subagents.sandbox import build_sandbox_agent
 from deepagents import create_deep_agent, FilesystemPermission
 from deepagents.backends import FilesystemBackend, CompositeBackend, StateBackend, StoreBackend
 from langgraph.store.sqlite.aio import AsyncSqliteStore
@@ -53,8 +53,8 @@ class DeepAgent:
             subagents = []
             web_agent = await build_web_agent(model)
             subagents.append(web_agent) if web_agent is not None else None
-            #desktop_agent = await build_desktop_agent(model)
-            #subagents.append(desktop_agent) if desktop_agent is not None else None
+            sandbox_agent=await build_sandbox_agent(model)
+            subagents.append(sandbox_agent) if sandbox_agent is not None else None
             self.subagents = subagents
             self.agent = await asyncio.to_thread(
                 construct_agent,

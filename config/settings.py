@@ -51,7 +51,7 @@ PROVIDER_CLASSES = {
     "databricks": ("databricks_langchain", "ChatDatabricks"),
     "amazon-nova": ("langchain_amazon_nova", "ChatAmazonNova"),
 }
-
+#Optional params for model building
 MODEL_PARAM_NAMES = ("temperature", "max_tokens", "timeout", "max_retries", "base_url")
 
 #hash saved provider details
@@ -60,7 +60,7 @@ def provider_config_signature():
         return hashlib.sha256(PROVIDER_CONFIG_PATH.read_bytes()).hexdigest()
     except OSError:
         return None
-
+#read provider details from provider.json
 def read_provider_configs():
     try:
         configs = json.loads(PROVIDER_CONFIG_PATH.read_text(encoding="utf-8"))
@@ -69,7 +69,7 @@ def read_provider_configs():
     if not isinstance(configs, list):
         return []
     return [config for config in configs if isinstance(config, dict)]
-
+#locate a single provider config
 def find_provider_config(configs, provider_name=None):
     if provider_name is None:
         return next((item for item in configs if item.get("active") is True), None)
@@ -77,7 +77,7 @@ def find_provider_config(configs, provider_name=None):
         (item for item in configs if str(item.get("provider") or "").strip() == provider_name),
         None,
     )
-
+#construct provider model
 def build_provider_model():
     config = find_provider_config(read_provider_configs())
     if config is None:
@@ -106,14 +106,6 @@ def build_provider_model():
     module = import_module(target[0])
     return getattr(module, target[1])(model=model, **params)
 
-#(not yet fully implemented) high risk tools that require approval
-REQUIRE_APPROVAL: set[str] = {
-    "send_email",
-    "delete_file",
-    "run_shell_command",
-    "create_calendar_event",
-    "send_message",
-}
 # Persistence
 
 DB_PATH = Path(__file__).resolve().parent.parent / "database" / "database.db"
@@ -126,7 +118,6 @@ EMBEDDING_MODEL_CHUNK=int(os.getenv("EMBEDDING_MODEL_CHUNK", 64))
 RAG_TOP_K = 4
 
 # Browser CLI limits and safety
-
 BROWSER_MAX_OUTPUT = int(os.getenv("BROWSER_MAX_OUTPUT", "20000"))
 BROWSER_COMMAND_TIMEOUT = int(os.getenv("BROWSER_TIMEOUT", "90"))
 
@@ -144,7 +135,6 @@ BROWSER_READ_COMMANDS = {
     "close",
     "tab-list",
 }
-
 BROWSER_ACT_COMMANDS = {
     "click",
     "dblclick",
@@ -204,6 +194,14 @@ BROWSER_FORBIDDEN_FLAGS = {
     "--user-data-dir",
 }
 
+#sandbox env vars
+#sandbox base port
+SANDBOX_PORT_NUMBER=7000
+#sandbox api key
+SANDBOX_API_KEY="Charles"
+#sandbox path
+CONFIG_PATH=str(Path.home() / ".sandbox.toml")
+
 #other env vars
-WEB_ENABLED=os.getenv("WEB_ENABLED")
-DESKTOP_ENABLED=os.getenv("DESKTOP_ENABLED")
+WEB_ENABLED={"0":False,"1":True}[str(os.getenv("WEB_ENABLED",0)).strip().lower()]
+SANDBOX_ENABLED=os.getenv("SANDBOX_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
