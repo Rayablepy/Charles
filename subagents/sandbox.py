@@ -1,8 +1,10 @@
+import importlib.util
 import json
 import shutil
 import sys
 import time
 from contextlib import asynccontextmanager
+from functools import cache
 from pathlib import Path
 import urllib.request
 import signal
@@ -30,15 +32,47 @@ CONNECTION_CONFIG = ConnectionConfigSync(
 )
 
 SANDBOX_LOCK = asyncio.Lock()
+
+@cache
+def resolve_sandbox_cmd():
+    executable = shutil.which("opensandbox-server")
+    if executable:
+        return [executable]
+    local_executable = shutil.which(
+        "opensandbox-server",
+        path=str(Path(sys.executable).parent),
+    )
+    if local_executable:
+        return [local_executable]
+    try:
+        module_installed = importlib.util.find_spec("opensandbox_server.cli") is not None
+    except (ImportError, ValueError):
+        module_installed = False
+    if module_installed:
+        return [sys.executable, "-m", "opensandbox_server.cli"]
+    uvx = shutil.which("uvx")
+    if uvx:
+        return [uvx, "opensandbox-server"]
+    uv = shutil.which("uv")
+    if uv:
+        return [uv, "tool", "run", "opensandbox-server"]
+    pipx = shutil.which("pipx")
+    if pipx:
+        return [pipx, "run", "opensandbox-server"]
+    return None
+
 #save sandbox details with this base class
 class SandboxContext(TypedDict):
     sandbox_session: dict[str, Any]
 
 def build_sandbox_config(force=False):
+    server_cmd = resolve_sandbox_cmd()
+    if server_cmd is None:
+        raise RuntimeError("OpenSandbox server command not found")
     config_path = Path(CONFIG_PATH)
     try:
         if force or not config_path.is_file():
-            config_cmd = ["uvx","opensandbox-server","init-config",CONFIG_PATH,"--example","docker"]
+            config_cmd = [*server_cmd, "init-config", CONFIG_PATH, "--example", "docker"]
             if force:
                 config_cmd.append("--force")
             subprocess.run(
@@ -67,6 +101,12 @@ def check_sandbox_server():
     except Exception:
         return False
 
+def sandbox_available():
+    return (
+        check_sandbox_server()
+        or resolve_sandbox_cmd() is not None
+    )
+
 def kill_sandbox_server(process):
     if process is None or process.poll() is not None:
         return
@@ -77,10 +117,11 @@ def kill_sandbox_server(process):
         process.kill()
 
 def start_sandbox_server():
-    build_sandbox_config()
     if check_sandbox_server():
-        return
-    process=subprocess.Popen(["uvx", "opensandbox-server", "--config", CONFIG_PATH],start_new_session=(os.name!="nt"))
+        return None
+    build_sandbox_config()
+    server_cmd = resolve_sandbox_cmd()
+    process=subprocess.Popen([*server_cmd, "--config", CONFIG_PATH],start_new_session=(os.name!="nt"))
     timeout=time.monotonic() +30
     while time.monotonic() < timeout:
         if check_sandbox_server():
@@ -160,7 +201,7 @@ async def sandbox_execute(command: str,runtime:ToolRuntime[SandboxContext],offse
         f"{window}"
     )
 async def build_sandbox_agent(model):
-    if not SANDBOX_ENABLED or shutil.which("uvx") is None:
+    if not SANDBOX_ENABLED or not sandbox_available():
         return None
     graph = create_agent(
         model=model,

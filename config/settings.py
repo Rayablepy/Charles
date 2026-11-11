@@ -204,4 +204,4 @@ CONFIG_PATH=str(Path.home() / ".sandbox.toml")
 
 #other env vars
 WEB_ENABLED={"0":False,"1":True}[str(os.getenv("WEB_ENABLED",0)).strip().lower()]
-SANDBOX_ENABLED={"0":False,"1":True}[str(os.getenv("WEB_ENABLED",0)).strip().lower()]
+SANDBOX_ENABLED=os.getenv("SANDBOX_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}

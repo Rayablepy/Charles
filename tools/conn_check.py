@@ -1,7 +1,6 @@
-import shutil
 from langchain_core.tools import tool
 from config.settings import SANDBOX_ENABLED
-from subagents.sandbox import check_sandbox_server
+from subagents.sandbox import sandbox_available
 from subagents.web_v3 import ensure_agent_browser
 
 #May have actual checks on connection-bound tools in the future, tbc
@@ -31,7 +30,7 @@ async def check_subagent_status()->dict[str,bool]:
         "sandbox_agent": False,
                        }
     web_status = ensure_agent_browser()
-    sandbox_status = SANDBOX_ENABLED and (check_sandbox_server() or shutil.which("uvx") is not None)
+    sandbox_status = SANDBOX_ENABLED and sandbox_available()
     if web_status: 
         subagent_status["web_agent"] = True
     if sandbox_status:
