@@ -3,7 +3,7 @@ import asyncio
 from langchain.agents.middleware import ClearToolUsesEdit,ContextEditingMiddleware
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from tools.tools import tool_list
-from config.settings import DB_PATH, PROJECT_ROOT, agent_config_signature, build_provider_model
+from config.settings import DB_PATH, PROJECT_ROOT, agent_config_signature, build_provider_model,check_langfuse
 from agent.system_prompt import build_system_prompt
 from subagents.web_v3 import build_web_agent
 from subagents.sandbox import build_sandbox_agent
@@ -80,7 +80,7 @@ def construct_agent(model, tools, store, checkpointer, subagents):
             "/skills/locked":FilesystemBackend(root_dir=PROJECT_ROOT,virtual_mode=True)
         },
     )
-    return create_deep_agent(
+    agent=create_deep_agent(
         model=model,
         system_prompt=build_system_prompt(),
         memory=["/longtermmemories/AGENTS.md","/longtermmemories/USERINFO.md","/longtermmemories/SYSTEM_PROMPT.md"],
@@ -107,6 +107,11 @@ def construct_agent(model, tools, store, checkpointer, subagents):
             )
         ],
     )
+    #Optionally override settings default here(if tracing is unnecessary)
+    handler= check_langfuse()
+    if handler is not None:
+        agent=agent.with_config({"callbacks":[handler]})
+    return agent
 
 deep_agent = DeepAgent()
 #variable required for langgraph server

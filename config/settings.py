@@ -6,9 +6,19 @@ from importlib import import_module
 from pathlib import Path
 
 from langchain.chat_models import init_chat_model
-
+from langfuse import get_client
+from langfuse.langchain import CallbackHandler
 load_dotenv()
-
+#Langfuse tracing, configure on/off by setting default to bool value
+def check_langfuse(langfuse_enabled=True):
+    langfuse=get_client()
+    if langfuse.auth_check() and langfuse_enabled:
+        print("Langfuse auth passed, tracing enabled")
+        handler=CallbackHandler()
+        return handler
+    else:
+        print("Langfuse auth failed,tracing disabled")
+        return None
 #Model constants
 CHAT_MODEL_NAME=os.getenv("CHAT_MODEL_NAME")
 LOCAL_MODEL_NAME=os.getenv("LOCAL_MODEL_NAME")

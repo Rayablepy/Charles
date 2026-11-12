@@ -30,4 +30,5 @@ dependencies = [
     "langchain-deepseek>=1.1.1",
     "langchain-sandbox-opensandbox>=0.1.2",
     "tomlkit>=0.15.2",
+    "langfuse>=5.2.0",
 ]
