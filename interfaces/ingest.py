@@ -124,6 +124,18 @@ async def config_subagents(subagent:SubagentConfig)->dict:
     write_subagent_configs(configs)
     return {"ok": True, "subagent": name, "enabled": enabled}
 
+@app.get("/subagents")
+async def list_subagents() -> dict:
+    return {
+        "subagents": [
+            {
+                "subagent": str(config.get("subagent") or "").strip(),
+                "enabled": config.get("enabled") is True,
+            }
+            for config in read_subagent_configs()
+        ]
+    }
+
 @app.post("/provider", status_code=HTTPStatus.OK)
 async def set_provider(config: ProviderConfig) -> dict:
     provider = config.provider.strip()

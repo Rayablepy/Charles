@@ -463,6 +463,30 @@
     @apply text-xs text-muted-foreground;
   }
 
+  .app-subagent-list {
+    @apply flex flex-col gap-2;
+  }
+
+  .app-subagent-name {
+    @apply font-mono text-sm font-medium;
+  }
+
+  .app-subagent-switch {
+    @apply relative h-5 w-9 shrink-0 rounded-full border bg-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .app-subagent-switch-on {
+    @apply border-emerald-500 bg-emerald-500;
+  }
+
+  .app-subagent-switch-thumb {
+    @apply absolute left-0.5 top-1/2 size-4 -translate-y-1/2 rounded-full bg-background shadow-sm transition-transform;
+  }
+
+  .app-subagent-switch-on .app-subagent-switch-thumb {
+    @apply translate-x-4;
+  }
+
   .app-theme-switch {
     @apply inline-flex shrink-0 items-center gap-0.5 rounded-md border bg-background p-0.5;
   }

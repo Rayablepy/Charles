@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import {
   ArrowLeftIcon,
+  BotIcon,
   EyeIcon,
   EyeOffIcon,
   MoonIcon,
@@ -30,8 +31,14 @@ import {
   type ConfiguredProvider,
   type Provider,
 } from "@/lib/providers";
+import {
+  listSubagents,
+  setSubagentEnabled,
+  SUBAGENTS,
+  type ConfiguredSubagent,
+} from "@/lib/subagents";
 
-type SettingsTab = "appearance" | "providers";
+type SettingsTab = "appearance" | "providers" | "subagents";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -40,6 +47,7 @@ function errorMessage(error: unknown): string {
 const TABS: { id: SettingsTab; label: string; icon: typeof PaletteIcon }[] = [
   { id: "appearance", label: "Appearance", icon: PaletteIcon },
   { id: "providers", label: "Providers", icon: PlugIcon },
+  { id: "subagents", label: "Subagents", icon: BotIcon },
 ];
 
 export function SettingsDialog() {
@@ -47,6 +55,9 @@ export function SettingsDialog() {
   const [tab, setTab] = useState<SettingsTab>("appearance");
   const [theme, setTheme] = useState<Theme>(() => readTheme());
   const [providers, setProviders] = useState<ConfiguredProvider[]>([]);
+  const [subagents, setSubagents] = useState<ConfiguredSubagent[]>([]);
+  const [subagentSaving, setSubagentSaving] = useState<string | null>(null);
+  const [subagentError, setSubagentError] = useState("");
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
   const [draftModel, setDraftModel] = useState("");
   const [draftKey, setDraftKey] = useState("");
@@ -61,6 +72,7 @@ export function SettingsDialog() {
   useEffect(() => {
     if (!open) return;
     listProviders().then(setProviders).catch(() => {});
+    listSubagents().then(setSubagents).catch(() => {});
   }, [open]);
 
   const activeProvider =
@@ -149,6 +161,20 @@ export function SettingsDialog() {
     }
   };
 
+  const toggleSubagent = async (subagent: string, enabled: boolean) => {
+    if (subagentSaving) return;
+    setSubagentSaving(subagent);
+    setSubagentError("");
+    try {
+      await setSubagentEnabled(subagent, enabled);
+      setSubagents(await listSubagents());
+    } catch (error) {
+      setSubagentError(errorMessage(error));
+    } finally {
+      setSubagentSaving(null);
+    }
+  };
+
   return (
     <Dialog
       open={open}
@@ -171,7 +197,7 @@ export function SettingsDialog() {
               Settings
             </DialogTitle>
             <DialogDescription className="sr-only">
-              Manage appearance and model providers.
+              Manage appearance, providers, and subagents.
             </DialogDescription>
           </div>
           <nav className="app-settings-nav" aria-label="Settings sections">
@@ -248,6 +274,44 @@ export function SettingsDialog() {
                   </button>
                 </div>
               </div>
+            </div>
+          ) : tab === "subagents" ? (
+            <div className="app-settings-panel">
+              <header className="app-settings-header">
+                <h2 className="app-settings-title">Subagents</h2>
+                <p className="app-settings-note">
+                  Choose which subagents Charles can use.
+                </p>
+              </header>
+              <div className="app-subagent-list">
+                {SUBAGENTS.map(({ id, name }) => {
+                  const enabled =
+                    subagents.find((item) => item.subagent === id)?.enabled ??
+                    true;
+                  return (
+                    <div className="app-settings-card" key={id}>
+                      <span className="app-subagent-name">{name}</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={enabled}
+                        aria-label={`Toggle ${name}`}
+                        className={cn(
+                          "app-subagent-switch",
+                          enabled && "app-subagent-switch-on",
+                        )}
+                        disabled={subagentSaving !== null}
+                        onClick={() => void toggleSubagent(id, !enabled)}
+                      >
+                        <span className="app-subagent-switch-thumb" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              {subagentError && (
+                <p className="app-settings-error">{subagentError}</p>
+              )}
             </div>
           ) : activeProvider ? (
             <div className="app-settings-panel">
