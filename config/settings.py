@@ -18,6 +18,7 @@ LOCAL_MODEL_BASE_URL = "http://localhost:1234/v1"
 
 PROJECT_ROOT = Path.home() / ".Charles"
 PROVIDER_CONFIG_PATH = PROJECT_ROOT / "provider.json"
+SUBAGENT_CONFIG_PATH = PROJECT_ROOT / "subagents.json"
 '''
 if LOCAL_MODEL_NAME:
     LOCAL_MODEL= init_chat_model(
@@ -29,6 +30,8 @@ if LOCAL_MODEL_NAME:
 else:
     LOCAL_MODEL= None
 '''
+
+#Provider json handling
 # provider id to model harness
 PROVIDER_HARNESSES = {
     "azure-openai": "azure_openai",
@@ -77,6 +80,46 @@ def find_provider_config(configs, provider_name=None):
         (item for item in configs if str(item.get("provider") or "").strip() == provider_name),
         None,
     )
+#read subagent details from subagents.json
+def read_subagent_configs():
+    try:
+        configs = json.loads(SUBAGENT_CONFIG_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(configs, list):
+        return []
+    return [config for config in configs if isinstance(config, dict)]
+
+#write subagent details to subagents.json
+def write_subagent_configs(configs):
+    SUBAGENT_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    SUBAGENT_CONFIG_PATH.write_text(json.dumps(configs), encoding="utf-8")
+
+#locate a single subagent config
+def find_subagent_config(configs, name):
+    return next(
+        (config for config in configs if str(config.get("subagent") or "").strip() == name),
+        None,
+    )
+
+#hash saved subagent details
+def subagent_config_signature():
+    try:
+        return hashlib.sha256(SUBAGENT_CONFIG_PATH.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+#resolve configured subagent state
+def subagent_enabled(name, default=True):
+    config = find_subagent_config(read_subagent_configs(), name)
+    if config is None:
+        return default
+    return config.get("enabled", default) is True
+
+#hash all agent-building config
+def agent_config_signature():
+    return provider_config_signature(), subagent_config_signature()
+
 #construct provider model
 def build_provider_model():
     config = find_provider_config(read_provider_configs())

@@ -10,7 +10,14 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
-from config.settings import build_provider_model, find_provider_config, read_provider_configs
+from config.settings import (
+    build_provider_model,
+    find_provider_config,
+    find_subagent_config,
+    read_provider_configs,
+    read_subagent_configs,
+    write_subagent_configs,
+)
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -38,6 +45,11 @@ class ProviderConfig(BaseModel):
 
 class ProviderSelection(BaseModel):
     provider: str
+
+class SubagentConfig(BaseModel):
+    subagent:str
+    enabled:bool=True
+    model:str
 
 JOBS: dict[str, dict] = {}
 QUEUE: queue.Queue[str] = queue.Queue()
@@ -97,6 +109,20 @@ app.add_middleware(
     allow_methods=["POST", "GET", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+@app.post("/subagents", status_code=HTTPStatus.OK)
+async def config_subagents(subagent:SubagentConfig)->dict:
+    name = subagent.subagent.strip()
+    enabled = subagent.enabled
+    if not name:
+        raise HTTPException(status_code=400, detail="subagent is required")
+    configs = read_subagent_configs()
+    config = find_subagent_config(configs, name)
+    if config is None:
+        config = {"subagent": name}
+        configs.append(config)
+    config["enabled"] = enabled
+    write_subagent_configs(configs)
+    return {"ok": True, "subagent": name, "enabled": enabled}
 
 @app.post("/provider", status_code=HTTPStatus.OK)
 async def set_provider(config: ProviderConfig) -> dict:
@@ -204,7 +230,7 @@ async def upload(file: UploadFile | None = File(default=None)) -> dict:
     job_id = str(uuid.uuid4())
     remember(
         job_id,
-        {
+    {
             "job_id": job_id,
             "status": "queued",
             "source": source,

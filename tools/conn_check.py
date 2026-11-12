@@ -1,5 +1,5 @@
 from langchain_core.tools import tool
-from config.settings import SANDBOX_ENABLED
+from config.settings import SANDBOX_ENABLED, WEB_ENABLED, subagent_enabled
 from subagents.sandbox import sandbox_available
 from subagents.web_v3 import ensure_agent_browser
 
@@ -29,8 +29,8 @@ async def check_subagent_status()->dict[str,bool]:
         "web_agent": False,
         "sandbox_agent": False,
                        }
-    web_status = ensure_agent_browser()
-    sandbox_status = SANDBOX_ENABLED and sandbox_available()
+    web_status = subagent_enabled("web_agent", WEB_ENABLED) and ensure_agent_browser()
+    sandbox_status = subagent_enabled("sandbox_agent", SANDBOX_ENABLED) and sandbox_available()
     if web_status: 
         subagent_status["web_agent"] = True
     if sandbox_status:

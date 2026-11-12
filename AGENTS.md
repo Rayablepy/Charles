@@ -2,7 +2,7 @@
 
 ## Code style
 
-- Comments: 5-10 words max. No docstrings. Comment only non-obvious "why".
+- Comments: 5-15 words max. No docstrings. Comment only non-obvious "why".
 - No inline styles. Move declarations into `interfaces/frontend/src/index.css`
   under `@layer components`, keyed on the element's existing `aui-*` or `app-*` class.
 - Runtime-computed values (scroll masks, progress widths) stay inline, but only
@@ -31,7 +31,7 @@ which is `deep_agent.build`: a lazy coroutine singleton opening an
 
 `construct_agent` builds a deep agent with a `CompositeBackend`
 (`/longtermmemories/` -> store, `/project/` -> `~/.Charles/project`), model
-`openrouter/free`, and subagents. Nodes are `model`, `tools`, plus one per
+set in `providers.json` under `/project/` path, and subagents. Nodes are `model`, `tools`, plus one per
 lifecycle hook override: `PatchToolCallsMiddleware.before_agent`,
 `MemoryMiddleware.before_agent`, `TodoListMiddleware.after_model`.
 
@@ -48,15 +48,6 @@ SSE event types: `messages/metadata`, `messages/partial`,
 `messages/complete`, `updates`, `custom`, `metadata`, `error`. `updates`
 and `messages/*` accumulate into message state, then
 `convertLangChainMessages` maps LangChain messages to assistant-ui parts.
-
-### Reasoning bridge
-
-OpenRouter returns reasoning in `additional_kwargs.reasoning_content` and
-`reasoning_details`. `langchain_core` derives a content block only from
-`reasoning_content`, and `convertLangChainContentBlock` reads only native
-`reasoning`/`thinking` blocks, so `reasoning_details` reaches neither.
-`langgraph-reasoning.ts` normalizes both fields into a
-`{type:"reasoning", index:0}` block before conversion.
 
 ### Attachments
 
@@ -79,10 +70,6 @@ which needs `attachSubagentTranscripts` (not used here).
 
 ### Known gaps
 
-- MCP tools re-open the fastmcp client per call; the browser-use subprocess
-  is kept alive between calls. `BROWSER_USE_HEADLESS=true` is injected into
-  the spawn env, since the `--mcp` entry point ignores the CLI `--headless`
-  flag.
 - The server always emits `messages/metadata`, which the SDK does not
   treat as known, so each one logs "Unhandled event received".
 - `values` is never requested, so the final state reconcile never runs.
@@ -93,8 +80,14 @@ which needs `attachSubagentTranscripts` (not used here).
   `checkpoint: { checkpoint_id }`.
 - The LangGraph API serves CORS `*` with no auth.
 
-## Frontend
+### Frontend
 
 - Build: `npm run build` from `interfaces/frontend` (repo root has no `build` script).
 - Lint: `node node_modules\oxlint src` (the `npx` wrapper breaks in PowerShell).
 - The LangGraph backend on `127.0.0.1:2024` is user-managed. Do not start or kill it.
+
+##
+### Operating procedure
+- All code changes must be as minimal as possible to achieve desired outcome
+- Any assumptions made when executing tasks must be presented to the user for review before execution
+- Do not edit any files that are gitignored without explicit user permission

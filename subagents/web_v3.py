@@ -18,6 +18,7 @@ from config.settings import (
     BROWSER_MAX_OUTPUT,
     BROWSER_READ_COMMANDS,
     WEB_ENABLED,
+    subagent_enabled,
 )
 
 @cache
@@ -129,7 +130,7 @@ async def browser_act(command: str, runtime: ToolRuntime) -> str:
 
 
 async def build_web_agent(model, checkpointer=None):
-    if not WEB_ENABLED or not ensure_agent_browser():
+    if not subagent_enabled("web_agent", WEB_ENABLED) or not ensure_agent_browser():
         return None
     middleware = []
     if checkpointer is not None:

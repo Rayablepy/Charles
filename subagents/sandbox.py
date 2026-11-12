@@ -23,7 +23,7 @@ from opensandbox import SandboxSync
 from langchain_opensandbox import OpenSandboxBackend
 from opensandbox.config.connection_sync import ConnectionConfigSync
 from opensandbox.exceptions import SandboxTimeoutException
-from config.settings import SANDBOX_PORT_NUMBER, SANDBOX_API_KEY,CONFIG_PATH, SANDBOX_ENABLED
+from config.settings import SANDBOX_PORT_NUMBER, SANDBOX_API_KEY,CONFIG_PATH, SANDBOX_ENABLED, subagent_enabled
 
 CONNECTION_CONFIG = ConnectionConfigSync(
     domain=f"127.0.0.1:{SANDBOX_PORT_NUMBER}",
@@ -201,7 +201,7 @@ async def sandbox_execute(command: str,runtime:ToolRuntime[SandboxContext],offse
         f"{window}"
     )
 async def build_sandbox_agent(model):
-    if not SANDBOX_ENABLED or not sandbox_available():
+    if not subagent_enabled("sandbox_agent", SANDBOX_ENABLED) or not sandbox_available():
         return None
     graph = create_agent(
         model=model,

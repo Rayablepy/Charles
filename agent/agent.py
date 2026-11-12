@@ -3,7 +3,7 @@ import asyncio
 from langchain.agents.middleware import ClearToolUsesEdit,ContextEditingMiddleware
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from tools.tools import tool_list
-from config.settings import DB_PATH, PROJECT_ROOT, build_provider_model, provider_config_signature
+from config.settings import DB_PATH, PROJECT_ROOT, agent_config_signature, build_provider_model
 from agent.system_prompt import build_system_prompt
 from subagents.web_v3 import build_web_agent
 from subagents.sandbox import build_sandbox_agent
@@ -29,16 +29,16 @@ class DeepAgent:
         self.model_signature = None
 
     async def build(self):
-        #lock free signature creation of provider config
-        signature = provider_config_signature()
-        #check if model signature in cache is same as curr signature
+        #lock free signature creation of agent config
+        signature = agent_config_signature()
+        #check if agent signature in cache is same as curr signature
         if self.agent is not None and signature == self.model_signature:
             return self.agent
         if self.build_lock is None:
             self.build_lock = asyncio.Lock()
-        #Re-read model signature with lock
+        #Re-read agent signature with lock
         async with self.build_lock:
-            signature = provider_config_signature()
+            signature = agent_config_signature()
             if self.agent is not None and signature == self.model_signature:
                 return self.agent
             if self.checkpointer is None:
