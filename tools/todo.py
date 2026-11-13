@@ -73,7 +73,7 @@ def alter_item_status(name:str, complete:int):
 
 @tool
 def delete_item(name:str):
-    """Delete an item/task from the todo list.
+    """Delete an item/task from the todo list.Recommended to use this when the item is complete.
     Args:
         name (str): The name of the item/task.
     Returns:
@@ -88,8 +88,7 @@ def delete_item(name:str):
     return f"Item {name} deleted"
 @tool
 def delete_all_items():
-    """Delete all items from the todo list.ONLY USE IF THE USER EXPLICITLY REQUESTS FOR IT.
-        DO NOT USE THIS TOOL WITHOUT EXPLICIT PERMISSION FROM THE USER
+    """Delete all items from the todo list.ONLY USE IF EXPLICITLY REQUIRED.
         Returns:
             str: Confirmation message of the deletion.
         """

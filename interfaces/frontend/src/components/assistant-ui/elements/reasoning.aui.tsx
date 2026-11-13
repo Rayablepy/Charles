@@ -5,6 +5,7 @@ import {
   useCallback,
   useRef,
   type PropsWithChildren,
+  type ReactNode,
 } from "react";
 import {
   useScrollLock,
@@ -74,6 +75,29 @@ function ReasoningGroup({
   );
 }
 
+function WorkingGroup({
+  running,
+  forceOpen,
+  interrupt,
+  children,
+}: PropsWithChildren<{
+  running: boolean;
+  forceOpen?: boolean;
+  interrupt?: ReactNode;
+}>) {
+  return (
+    <ReasoningRoot variant="ghost" streaming={running} forceOpen={forceOpen}>
+      <ReasoningTrigger active={running} />
+      <ReasoningContent aria-busy={running}>
+        <ReasoningText>{children}</ReasoningText>
+        {interrupt === undefined ? null : (
+          <div className="aui-working-interrupt">{interrupt}</div>
+        )}
+      </ReasoningContent>
+    </ReasoningRoot>
+  );
+}
+
 const Reasoning = memo(
   ReasoningImpl,
 ) as unknown as ReasoningMessagePartComponent & {
@@ -94,6 +118,7 @@ Reasoning.Fade = ReasoningFade;
 export {
   Reasoning,
   ReasoningGroup,
+  WorkingGroup,
   ReasoningRoot,
   ReasoningTrigger,
   ReasoningContent,

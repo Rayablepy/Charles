@@ -44,6 +44,7 @@ export type ReasoningRootProps = Omit<
     onOpenChange?: (open: boolean) => void;
     defaultOpen?: boolean;
     streaming?: boolean;
+    forceOpen?: boolean;
     onAnimationStart?: () => void;
   };
 
@@ -54,6 +55,7 @@ function ReasoningRoot({
   onOpenChange: controlledOnOpenChange,
   defaultOpen = false,
   streaming,
+  forceOpen = false,
   onAnimationStart,
   children,
   ...props
@@ -64,7 +66,7 @@ function ReasoningRoot({
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled
     ? controlledOpen
-    : (userOpen ?? (streaming || initialOpen));
+    : forceOpen || (userOpen ?? (streaming || initialOpen));
   const isPreview = streaming === true && isOpen;
 
   const prevStreamingRef = useRef(streaming);
@@ -175,7 +177,7 @@ function ReasoningTrigger({
           active && "shimmer motion-reduce:animate-none",
         )}
       >
-        Thinking{durationText}...
+        Working{durationText}...
       </span>
       <ChevronDownIcon
         data-slot="reasoning-trigger-chevron"

@@ -12,14 +12,9 @@ import { Image } from "@/components/assistant-ui/elements/image";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import {
   Reasoning,
-  ReasoningGroup,
+  WorkingGroup,
 } from "@/components/assistant-ui/elements/reasoning.aui";
 import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
-import {
-  ToolGroupContent,
-  ToolGroupRoot,
-  ToolGroupTrigger,
-} from "@/components/assistant-ui/elements/tool-group.aui";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -45,6 +40,7 @@ import {
   useAui,
   useAuiState,
 } from "@assistant-ui/react";
+import { useLangGraphInterruptState } from "@assistant-ui/react-langgraph";
 import {
   ArrowDownIcon,
   ArrowUpIcon,
@@ -85,34 +81,10 @@ export type ThreadComponents = {
 };
 
 const messageGroupBy = groupPartByType({
-  reasoning: ["group-chainOfThought", "group-reasoning"],
-  "tool-call": ["group-chainOfThought", "group-tool"],
+  reasoning: ["group-working"],
+  "tool-call": ["group-working"],
   "standalone-tool-call": [],
 });
-
-type ThreadGroupKey =
-  | "group-chainOfThought"
-  | "group-reasoning"
-  | "group-tool"
-  | "group-task";
-
-const TASK_GROUP_PATH: readonly ThreadGroupKey[] = [
-  "group-chainOfThought",
-  "group-task",
-];
-
-const taskAwareGroupBy = (
-  part: Parameters<typeof messageGroupBy>[0],
-  context?: Parameters<typeof messageGroupBy>[1],
-): readonly ThreadGroupKey[] => {
-  const path = messageGroupBy(part, context);
-  return part.type === "tool-call" &&
-    part.messages !== undefined &&
-    path.length > 0 &&
-    !context?.toolUIs?.[part.toolName]?.length
-    ? TASK_GROUP_PATH
-    : path;
-};
 
 export type ThreadProps = {
   components?: ThreadComponents | undefined;
@@ -173,9 +145,7 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
   isEmpty,
   autoFocus,
 }) => {
-  const { Welcome = ThreadWelcome, Interrupt } = useContext(
-    ThreadComponentsContext,
-  );
+  const { Welcome = ThreadWelcome } = useContext(ThreadComponentsContext);
   const providerReady = useProviderVerified() === true;
 
   return (
@@ -216,7 +186,6 @@ const ThreadRoot: FC<{ isEmpty: boolean; autoFocus: boolean }> = ({
           >
             <ThreadScrollToBottom />
             {providerReady && <ThreadFollowupSuggestions />}
-            {Interrupt === undefined ? null : <Interrupt />}
             <Composer autoFocus={autoFocus} locked={!providerReady} />
             {providerReady && (
               <AuiIf condition={(s) => isNewChatView(s) && s.composer.isEmpty}>
@@ -472,11 +441,25 @@ const MessageError: FC = () => {
 
 const AssistantMessage: FC = () => {
   const {
+    Interrupt,
     ToolFallback: ToolFallbackComponent = ToolFallback,
-    ToolGroup,
-    TaskGroup: TaskGroupComponent,
   } = useContext(ThreadComponentsContext);
-  const groupBy = TaskGroupComponent ? taskAwareGroupBy : messageGroupBy;
+  const interrupt = useLangGraphInterruptState();
+  const isLastMessage = useAuiState(
+    (s) => s.message.index === s.thread.messages.length - 1,
+  );
+  const showInterrupt = interrupt !== undefined && isLastMessage;
+  const lastWorkIndex = useAuiState((s) => {
+    const parts = s.message.parts;
+    for (let i = parts.length - 1; i >= 0; i -= 1) {
+      const part = parts[i];
+      if (part === undefined) continue;
+      if (part.type !== "reasoning" && part.type !== "tool-call") continue;
+      const path = messageGroupBy(part, { toolUIs: s.tools.toolUIs });
+      if (path.length > 0) return i;
+    }
+    return -1;
+  });
 
   const ACTION_BAR_PT = "pt-1.5";
   const ACTION_BAR_HEIGHT = `min-h-7.5 ${ACTION_BAR_PT}`;
@@ -491,31 +474,25 @@ const AssistantMessage: FC = () => {
         data-slot="aui_assistant-message-content"
         className="text-foreground px-2 leading-relaxed wrap-break-word"
       >
-        <MessagePrimitive.GroupedParts groupBy={groupBy}>
+        <MessagePrimitive.GroupedParts groupBy={messageGroupBy}>
           {({ part, children }) => {
             switch (part.type) {
-              case "group-chainOfThought":
-                return <div data-slot="aui_chain-of-thought">{children}</div>;
-              case "group-task":
-                return TaskGroupComponent ? (
-                  <TaskGroupComponent group={part} />
-                ) : null;
-              case "group-tool": {
+              case "group-working": {
                 const running = part.status.type === "running";
-                if (ToolGroup) {
-                  return <ToolGroup group={part}>{children}</ToolGroup>;
-                }
+                const showHere =
+                  showInterrupt && part.indices.includes(lastWorkIndex);
                 return (
-                  <ToolGroupRoot variant="ghost" running={running}>
-                    <ToolGroupTrigger active={running} />
-                    <ToolGroupContent>{children}</ToolGroupContent>
-                  </ToolGroupRoot>
-                );
-              }
-              case "group-reasoning": {
-                const running = part.status.type === "running";
-                return (
-                  <ReasoningGroup running={running}>{children}</ReasoningGroup>
+                  <WorkingGroup
+                    running={running}
+                    forceOpen={showHere || part.counts.requiresAction > 0}
+                    interrupt={
+                      showHere && Interrupt !== undefined
+                        ? <Interrupt />
+                        : undefined
+                    }
+                  >
+                    {children}
+                  </WorkingGroup>
                 );
               }
               case "text":
@@ -553,6 +530,11 @@ const AssistantMessage: FC = () => {
             }
           }}
         </MessagePrimitive.GroupedParts>
+        {showInterrupt && lastWorkIndex < 0 && Interrupt !== undefined ? (
+          <WorkingGroup running={false} forceOpen interrupt={<Interrupt />}>
+            {null}
+          </WorkingGroup>
+        ) : null}
         <MessageError />
       </div>
 

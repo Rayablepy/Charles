@@ -608,6 +608,10 @@
     }
   }
 
+  .aui-working-interrupt {
+    @apply ps-6 pt-2 pb-2;
+  }
+
   .app-approval {
     @apply flex flex-col gap-3 rounded-(--composer-radius) border border-foreground/15 bg-(--composer-bg) p-3 text-sm;
   }
