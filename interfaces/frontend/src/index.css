@@ -263,12 +263,16 @@
   }
 
   .app-files-header {
-    @apply shrink-0;
+    @apply flex shrink-0 items-center justify-between gap-4;
   }
 
   .app-files-title {
     @apply font-heading text-2xl font-extrabold;
     font-variation-settings: 'wght' 900, 'ROND' 100;
+  }
+
+  .app-files-upload {
+    @apply flex shrink-0 items-center gap-2 rounded-md border bg-background px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50;
   }
 
   .app-files-note {

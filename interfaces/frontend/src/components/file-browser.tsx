@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+} from "react";
 import {
   CopyIcon,
   EllipsisVerticalIcon,
@@ -8,6 +14,7 @@ import {
   Loader2Icon,
   PencilIcon,
   Trash2Icon,
+  UploadIcon,
 } from "lucide-react";
 import {
   Dialog,
@@ -28,6 +35,7 @@ import {
   listFiles,
   readFile,
   renameFile,
+  uploadSkill,
   type FileScope,
   type StoredFile,
   type StoredFileContent,
@@ -93,6 +101,8 @@ export function FileBrowser({
   const [notice, setNotice] = useState("");
   const [selected, setSelected] = useState<StoredFileContent | null>(null);
   const [loadingPath, setLoadingPath] = useState<string | null>(null);
+  const [uploadingSkill, setUploadingSkill] = useState(false);
+  const uploadInputRef = useRef<HTMLInputElement>(null);
 
   const [renameTarget, setRenameTarget] = useState<StoredFile | null>(null);
   const [renameDraft, setRenameDraft] = useState("");
@@ -143,6 +153,24 @@ export function FileBrowser({
       setNotice(`Copied ${file.full_path}`);
     } catch {
       setError("Could not copy the file path");
+    }
+  };
+
+  const handleSkillUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setUploadingSkill(true);
+    setError("");
+    try {
+      await uploadSkill(file);
+      setNotice(`Uploaded ${file.name}`);
+      await loadFiles();
+    } catch (err) {
+      setError(errorMessage(err));
+    } finally {
+      setUploadingSkill(false);
     }
   };
 
@@ -209,6 +237,31 @@ export function FileBrowser({
     <div className="app-files">
       <header className="app-files-header">
         <h2 className="app-files-title">{title}</h2>
+        {scope === "skills" && (
+          <>
+            <input
+              ref={uploadInputRef}
+              type="file"
+              className="hidden"
+              onChange={(event) => void handleSkillUpload(event)}
+            />
+            <button
+              type="button"
+              className="app-files-upload"
+              onClick={() => uploadInputRef.current?.click()}
+              disabled={uploadingSkill}
+              aria-busy={uploadingSkill}
+              title="Upload to locked skills"
+            >
+              {uploadingSkill ? (
+                <Loader2Icon className="size-4 animate-spin" />
+              ) : (
+                <UploadIcon className="size-4" />
+              )}
+              <span>{uploadingSkill ? "Uploading" : "Upload skill"}</span>
+            </button>
+          </>
+        )}
       </header>
       {error && <p className="app-files-note app-files-note-error">{error}</p>}
       {notice && <p className="app-files-note">{notice}</p>}

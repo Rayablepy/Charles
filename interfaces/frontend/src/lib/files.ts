@@ -70,3 +70,13 @@ export async function deleteFile(
   );
   if (!response.ok) throw new Error(await readError(response));
 }
+
+export async function uploadSkill(file: File): Promise<void> {
+  const form = new FormData();
+  form.append("file", file, file.name);
+  const response = await fetch(`${INGEST_API_URL}/skills/upload`, {
+    method: "POST",
+    body: form,
+  });
+  if (!response.ok) throw new Error(await readError(response));
+}
