@@ -75,9 +75,9 @@ def construct_agent(model, tools, store, checkpointer, subagents):
                 store=store,
                 namespace=lambda op: ("Charles", "longterm"),
             ),
-            "/project/": FilesystemBackend(root_dir=PROJECT_ROOT, virtual_mode=True),
-            "/skills/editable":FilesystemBackend(root_dir=PROJECT_ROOT, virtual_mode=True),
-            "/skills/locked":FilesystemBackend(root_dir=PROJECT_ROOT,virtual_mode=True)
+            "/project/": FilesystemBackend(root_dir=PROJECT_ROOT / "project", virtual_mode=True),
+            "/skills/editable/": FilesystemBackend(root_dir=PROJECT_ROOT / "skills" / "editable", virtual_mode=True),
+            "/skills/locked/": FilesystemBackend(root_dir=PROJECT_ROOT / "skills" / "locked", virtual_mode=True),
         },
     )
     agent=create_deep_agent(

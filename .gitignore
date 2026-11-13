@@ -1,6 +1,7 @@
 .env
 localAgent.db
 chroma_langchain_db
+charles_chroma_db
 .venv
 .idea
 __pycache__

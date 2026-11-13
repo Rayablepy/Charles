@@ -2,6 +2,7 @@
 import json
 import os
 import queue
+import re
 import sys
 import tempfile
 import threading
@@ -21,6 +22,7 @@ from config.settings import (
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+import yaml
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -35,6 +37,9 @@ STAGING_PREFIX = "rag-upload-"
 TERMINAL = {"indexed", "already-indexed", "failed"}
 FILE_MAX_BYTES = 512 * 1024
 FILE_LIST_LIMIT = 5000
+SKILL_FILE_NAME = "SKILL.md"
+SKILL_NAME_MAX = 64
+SKILL_FRONTMATTER = re.compile(r"^---\s*\n(.*?)\n---\s*(?:\n|$)", re.DOTALL)
 PROVIDER_CONFIG_PATH = PROJECT_ROOT / "provider.json"
 
 #pydantic outputs for fastapi endpoints
@@ -323,6 +328,42 @@ def resolve_scope_path(scope: str, raw: str) -> Path:
         raise HTTPException(status_code=400, detail=f"path escapes the {scope} directory")
     return candidate
 
+#handle skill files
+def validate_skill_name(name: str) -> str:
+    if len(name) > SKILL_NAME_MAX:
+        raise HTTPException(status_code=400, detail="skill name exceeds 64 characters")
+    if name.startswith("-") or name.endswith("-") or "--" in name:
+        raise HTTPException(status_code=400, detail="skill name must use single hyphens")
+    valid_chars = all(
+        char == "-" or (char.isalpha() and char.islower()) or char.isdigit()
+        for char in name
+    )
+    if not valid_chars:
+        raise HTTPException(status_code=400, detail="skill name must be lowercase alphanumeric with hyphens")
+    return name
+
+
+def parse_skill_name(content: bytes) -> str:
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise HTTPException(status_code=400, detail="SKILL.md must be UTF-8") from exc
+    match = SKILL_FRONTMATTER.match(text)
+    if match is None:
+        raise HTTPException(status_code=400, detail="SKILL.md needs YAML frontmatter")
+    try:
+        metadata = yaml.safe_load(match.group(1))
+    except yaml.YAMLError as exc:
+        raise HTTPException(status_code=400, detail="SKILL.md has invalid YAML") from exc
+    if not isinstance(metadata, dict):
+        raise HTTPException(status_code=400, detail="SKILL.md frontmatter must be a mapping")
+    name = metadata.get("name")
+    description = metadata.get("description")
+    if not isinstance(name, str) or not name.strip():
+        raise HTTPException(status_code=400, detail="skill name is required")
+    if not isinstance(description, str) or not description.strip():
+        raise HTTPException(status_code=400, detail="skill description is required")
+    return validate_skill_name(name.strip())
 
 def validate_file_name(name: str) -> str:
     clean = (name or "").strip()
@@ -334,7 +375,7 @@ def validate_file_name(name: str) -> str:
         raise HTTPException(status_code=400, detail="file name cannot end with a dot or space")
     return clean
 
-
+#handle uploaded files
 def list_scope_files(scope: str) -> dict:
     root = scope_dir(scope)
     files: list[dict] = []
@@ -450,6 +491,32 @@ async def project_file(path: str = Query(...)) -> dict:
 @app.get("/skills/file")
 async def skills_file(path: str = Query(...)) -> dict:
     return read_scope_file("skills", path)
+
+
+@app.post("/skills/upload", status_code=HTTPStatus.CREATED)
+async def upload_skill(file: UploadFile | None = File(default=None)) -> dict:
+    if file is None or not file.filename:
+        raise HTTPException(status_code=400, detail="missing file")
+    source = os.path.basename(file.filename.replace("\\", "/"))
+    if source.lower() != SKILL_FILE_NAME.lower():
+        raise HTTPException(status_code=400, detail=f"file must be named {SKILL_FILE_NAME}")
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if not content:
+        raise HTTPException(status_code=400, detail="empty file")
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
+            detail=f"skill file exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)} MB",
+        )
+    name = parse_skill_name(content)
+    root = scope_dir("skills")
+    target = resolve_scope_path("skills", f"locked/{name}/{SKILL_FILE_NAME}")
+    try:
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(content)
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail="failed to store skill") from exc
+    return {"ok": True, "name": name, "path": target.relative_to(root).as_posix()}
 
 
 @app.post("/project/file/rename")

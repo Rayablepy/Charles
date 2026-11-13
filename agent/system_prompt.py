@@ -31,7 +31,7 @@ Memory and workspace:
 - `/longtermmemories/AGENTS.md`: other durable notes.
 - `/longtermmemories/SYSTEM_PROMPT.md`: read-only copy of this prompt.
 - Only these three files auto-load each session.
-- `/project/`: sandboxed read/write workspace; no access outside it.
+- `/project/`: sandboxed read/write workspace to handle project files; no access outside it.
 - `/skills/editable/`: create, edit, and remove skills.
 - `/skills/locked/`: installed skills; writes interrupt for approval.
 """

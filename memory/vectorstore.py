@@ -7,14 +7,14 @@ from functools import lru_cache
 from langchain_text_splitters import TokenTextSplitter
 from langchain_core.documents import Document
 from langchain_core.tools import tool
-from config.settings import CHROMA_PERSIST_DIR, LOCAL_EMBEDDING_MODEL_NAME, EMBEDDING_MODEL_CONTEXT, EMBEDDING_MODEL_CHUNK
+from config.settings import CHROMA_PERSIST_DIR, EMBEDDING_MODEL_NAME, EMBEDDING_MODEL_CONTEXT, EMBEDDING_MODEL_CHUNK
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
 
 @lru_cache(maxsize=1)
 def get_embeddings():
     return OpenAIEmbeddings(
-        model=LOCAL_EMBEDDING_MODEL_NAME,
+        model=EMBEDDING_MODEL_NAME,
         openai_api_base="http://localhost:1234/v1",
         openai_api_key="lm-studio",
         check_embedding_ctx_length=False,
@@ -23,7 +23,7 @@ def get_embeddings():
 
 def get_store():
     return Chroma(
-        collection_name="NL2SQL",
+        collection_name="Charles_embeddings",
         embedding_function=get_embeddings(),
         persist_directory=CHROMA_PERSIST_DIR,
     )
@@ -43,6 +43,7 @@ def get_text_splitter():
         chunk_size=EMBEDDING_MODEL_CONTEXT,
         chunk_overlap=EMBEDDING_MODEL_CHUNK,
     )
+
 INVALID_NAME_CHARS = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 RESERVED_NAMES = {"", ".", "..", "chroma.sqlite3"}
 
@@ -56,7 +57,7 @@ def sanitize_name(original: str) -> str:
     return name
 
 
-def _sha1_of(path: str) -> str:
+def sha_1(path: str) -> str:
     h = hashlib.sha1()
     with open(path, "rb") as f:
         for block in iter(lambda: f.read(1024 * 1024), b""):
@@ -74,7 +75,7 @@ def read_data(file_path: str) -> list[Document]:
             page_content=text,
             metadata={
                 "source": os.path.basename(file_path),
-                "sha1": _sha1_of(file_path),
+                "sha1": sha_1(file_path),
             },
         )
     ]
@@ -96,7 +97,7 @@ def ingest_file(upload_path: str, original_name: str) -> str:
     source = sanitize_name(original_name)
     os.makedirs(CHROMA_PERSIST_DIR, exist_ok=True)
     dest = os.path.join(CHROMA_PERSIST_DIR, source)
-    digest = _sha1_of(upload_path)
+    digest = sha_1(upload_path)
     if os.path.abspath(upload_path) != os.path.abspath(dest):
         shutil.copyfile(upload_path, dest)
     try:

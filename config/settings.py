@@ -22,7 +22,7 @@ def check_langfuse(langfuse_enabled=True):
 #Model constants
 CHAT_MODEL_NAME=os.getenv("CHAT_MODEL_NAME")
 LOCAL_MODEL_NAME=os.getenv("LOCAL_MODEL_NAME")
-LOCAL_EMBEDDING_MODEL_NAME=os.getenv("LOCAL_EMBEDDING_MODEL_NAME")
+EMBEDDING_MODEL_NAME=os.getenv("EMBEDDING_MODEL_NAME")
 MODEL_PROVIDER = "openai"
 LOCAL_MODEL_BASE_URL = "http://localhost:1234/v1"
 
@@ -162,7 +162,7 @@ def build_provider_model():
 # Persistence
 
 DB_PATH = Path(__file__).resolve().parent.parent / "database" / "database.db"
-CHROMA_PERSIST_DIR = Path(__file__).resolve().parent.parent / "chroma_langchain_db"
+CHROMA_PERSIST_DIR = Path(__file__).resolve().parent.parent / "charles_chroma_db"
 
 # Retrieval
 
