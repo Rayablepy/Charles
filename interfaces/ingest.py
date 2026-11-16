@@ -11,14 +11,9 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
-from config.settings import (
-    build_provider_model,
-    find_provider_config,
-    find_subagent_config,
-    read_provider_configs,
-    read_subagent_configs,
-    write_subagent_configs,
-)
+from config.settings import (CHROMA_PERSIST_DIR,build_provider_model,find_provider_config,find_subagent_config,
+read_provider_configs,read_subagent_configs,write_subagent_configs)
+
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -27,7 +22,7 @@ import yaml
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config.settings import PROJECT_ROOT
-from memory.vectorstore import ingest_file, read_data, sanitize_name
+from memory.vectorstore import delete_data,ingest_file, list_data,read_data,sanitize_name
 
 HOST = os.getenv("INGEST_API_HOST", "127.0.0.1")
 PORT = int(os.getenv("INGEST_API_PORT", "2030"))
@@ -538,6 +533,44 @@ async def delete_project_file(path: str = Query(...)) -> dict:
 @app.delete("/skills/file")
 async def delete_skills_file(path: str = Query(...)) -> dict:
     return delete_scope_file("skills", path)
+
+@app.get("/memory/files")
+async def memory_files() -> dict:
+    files: list[dict] = []
+    for source in list_data():
+        name = os.path.basename(source)
+        full = CHROMA_PERSIST_DIR / name
+        size = 0
+        modified = ""
+        try:
+            stat = full.stat()
+            size = stat.st_size
+            modified = datetime.fromtimestamp(
+                stat.st_mtime, tz=timezone.utc
+            ).isoformat()
+        except OSError:
+            pass
+        files.append(
+            {
+                "path": name,
+                "name": name,
+                "size": size,
+                "modified": modified,
+                "full_path": str(full),
+            }
+        )
+    return {"files": files}
+
+
+@app.delete("/memory/file")
+async def delete_memory_file(path: str = Query(...)) -> dict:
+    try:
+        source = sanitize_name(path)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    delete_data(source)
+    return {"ok": True, "path": source}
+
 
 if __name__ == "__main__":
     import uvicorn
