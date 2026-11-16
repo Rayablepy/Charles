@@ -5,6 +5,7 @@ import { ChatRuntimeProvider } from "@/components/chat-runtime";
 import { ChatSidebar, type AppView } from "@/components/chat-sidebar";
 import { AppWelcome } from "@/components/app-welcome";
 import { FileBrowser } from "@/components/file-browser";
+import { MemoryBrowser } from "@/components/memory-browser";
 import { InterruptPrompt } from "@/components/assistant-ui/elements/interrupt.aui";
 import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { verifyProvider } from "@/lib/providers";
@@ -46,6 +47,7 @@ export default function ChatPage() {
               title="Skills"
             />
           )}
+          {view === "memory" && <MemoryBrowser />}
           {view === "chat" && (
             <div className="app-thread">
               <Thread

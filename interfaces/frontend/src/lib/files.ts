@@ -71,6 +71,21 @@ export async function deleteFile(
   if (!response.ok) throw new Error(await readError(response));
 }
 
+export async function listMemoryFiles(): Promise<StoredFile[]> {
+  const response = await fetch(`${INGEST_API_URL}/memory/files`);
+  if (!response.ok) throw new Error(await readError(response));
+  const body = (await response.json()) as { files?: StoredFile[] };
+  return body.files ?? [];
+}
+
+export async function deleteMemoryFile(path: string): Promise<void> {
+  const response = await fetch(
+    `${INGEST_API_URL}/memory/file?path=${encodeURIComponent(path)}`,
+    { method: "DELETE" },
+  );
+  if (!response.ok) throw new Error(await readError(response));
+}
+
 export async function uploadSkill(file: File): Promise<void> {
   const form = new FormData();
   form.append("file", file, file.name);

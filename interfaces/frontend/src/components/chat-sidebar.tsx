@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  DatabaseIcon,
   FolderIcon,
   PencilIcon,
   PlusIcon,
@@ -11,7 +12,6 @@ import {
 import { useAuiState } from "@assistant-ui/react";
 import { cn } from "@/lib/utils";
 import { SettingsDialog } from "@/components/settings-dialog";
-import { MemoryUpload } from "@/components/memory-upload";
 import {
   listChats,
   deleteChat,
@@ -19,11 +19,12 @@ import {
   type ChatSummary,
 } from "@/lib/langgraph";
 
-export type AppView = "chat" | "project" | "skills";
+export type AppView = "chat" | "project" | "skills" | "memory";
 
 const VIEWS: { id: AppView; label: string; icon: typeof FolderIcon }[] = [
   { id: "project", label: "Project Files", icon: FolderIcon },
   { id: "skills", label: "Skills", icon: SparklesIcon },
+  { id: "memory", label: "Memory", icon: DatabaseIcon },
 ];
 
 export function ChatSidebar({
@@ -202,7 +203,6 @@ export function ChatSidebar({
           )}
         </div>
       </nav>
-      <MemoryUpload />
     </aside>
   );
 }
