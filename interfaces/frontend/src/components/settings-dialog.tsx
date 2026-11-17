@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import {
   ArrowLeftIcon,
   BotIcon,
+  BrainIcon,
   EyeIcon,
   EyeOffIcon,
   MoonIcon,
@@ -37,8 +38,14 @@ import {
   SUBAGENTS,
   type ConfiguredSubagent,
 } from "@/lib/subagents";
+import {
+  extractAdditionalInstructions,
+  mergeAdditionalInstructions,
+  readAgentDocument,
+  writeAgentDocument,
+} from "@/lib/agent-docs";
 
-type SettingsTab = "appearance" | "providers" | "subagents";
+type SettingsTab = "appearance" | "providers" | "subagents" | "memory";
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
@@ -48,6 +55,7 @@ const TABS: { id: SettingsTab; label: string; icon: typeof PaletteIcon }[] = [
   { id: "appearance", label: "Appearance", icon: PaletteIcon },
   { id: "providers", label: "Providers", icon: PlugIcon },
   { id: "subagents", label: "Subagents", icon: BotIcon },
+  { id: "memory", label: "Agent memory", icon: BrainIcon },
 ];
 
 export function SettingsDialog() {
@@ -58,6 +66,14 @@ export function SettingsDialog() {
   const [subagents, setSubagents] = useState<ConfiguredSubagent[]>([]);
   const [subagentSaving, setSubagentSaving] = useState<string | null>(null);
   const [subagentError, setSubagentError] = useState("");
+  const [userInfoContent, setUserInfoContent] = useState("");
+  const [instructions, setInstructions] = useState("");
+  const [savedInstructions, setSavedInstructions] = useState("");
+  const [memoryLoading, setMemoryLoading] = useState(false);
+  const [memoryLoaded, setMemoryLoaded] = useState(false);
+  const [memorySaving, setMemorySaving] = useState(false);
+  const [memoryError, setMemoryError] = useState("");
+  const [memoryNotice, setMemoryNotice] = useState("");
   const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
   const [draftModel, setDraftModel] = useState("");
   const [draftKey, setDraftKey] = useState("");
@@ -73,6 +89,16 @@ export function SettingsDialog() {
     if (!open) return;
     listProviders().then(setProviders).catch(() => {});
     listSubagents().then(setSubagents).catch(() => {});
+    readAgentDocument("userinfo")
+      .then((content) => {
+        const next = extractAdditionalInstructions(content);
+        setUserInfoContent(content);
+        setInstructions(next);
+        setSavedInstructions(next);
+        setMemoryLoaded(true);
+      })
+      .catch((error) => setMemoryError(errorMessage(error)))
+      .finally(() => setMemoryLoading(false));
   }, [open]);
 
   const activeProvider =
@@ -88,6 +114,7 @@ export function SettingsDialog() {
     (activeProvider.keyOptional === true ||
       savedConfig !== null ||
       draftKey.trim().length > 0);
+  const instructionsDirty = instructions !== savedInstructions;
 
   const closeProvider = () => {
     setActiveProviderId(null);
@@ -175,12 +202,37 @@ export function SettingsDialog() {
     }
   };
 
+  const saveInstructions = async () => {
+    if (memoryLoading || memorySaving) return;
+    setMemorySaving(true);
+    setMemoryError("");
+    setMemoryNotice("");
+    try {
+      const content = mergeAdditionalInstructions(userInfoContent, instructions);
+      await writeAgentDocument("userinfo", content);
+      setUserInfoContent(content);
+      setSavedInstructions(instructions);
+      setMemoryNotice("Saved.");
+    } catch (error) {
+      setMemoryError(errorMessage(error));
+    } finally {
+      setMemorySaving(false);
+    }
+  };
+
   return (
     <Dialog
       open={open}
       onOpenChange={(next) => {
         setOpen(next);
-        if (!next) closeProvider();
+        if (next) {
+          setMemoryLoading(true);
+          setMemoryLoaded(false);
+          setMemoryError("");
+          setMemoryNotice("");
+        } else {
+          closeProvider();
+        }
       }}
     >
       <DialogTrigger
@@ -197,7 +249,7 @@ export function SettingsDialog() {
               Settings
             </DialogTitle>
             <DialogDescription className="sr-only">
-              Manage appearance, providers, and subagents.
+              Manage appearance, providers, subagents, and agent memory.
             </DialogDescription>
           </div>
           <nav className="app-settings-nav" aria-label="Settings sections">
@@ -274,6 +326,61 @@ export function SettingsDialog() {
                   </button>
                 </div>
               </div>
+            </div>
+          ) : tab === "memory" ? (
+            <div className="app-settings-panel">
+              <header className="app-settings-header">
+                <h2 className="app-settings-title">Agent memory</h2>
+                <p className="app-settings-note">
+                  Add standing instructions that Charles follows in every conversation.
+                </p>
+              </header>
+              <section className="app-settings-card app-memory-section">
+                <div className="app-settings-card-text">
+                  <p className="app-settings-card-title">
+                    Additional instructions
+                  </p>
+                  <p className="app-settings-card-note">
+                    Kept in its own section of agent memory.
+                  </p>
+                </div>
+                <textarea
+                  className="app-memory-textarea"
+                  aria-label="Additional instructions"
+                  value={instructions}
+                  onChange={(event) => setInstructions(event.target.value)}
+                  placeholder="Always answer concisely and ask before destructive changes."
+                  disabled={memoryLoading || memorySaving}
+                  rows={8}
+                />
+                <div className="app-memory-actions">
+                  <span className="app-memory-status">
+                    {memoryLoading
+                      ? "Loading…"
+                      : memoryError
+                        ? ""
+                        : instructionsDirty
+                          ? "Unsaved changes."
+                          : memoryNotice || "Changes apply to the next response."}
+                  </span>
+                  <button
+                    type="button"
+                    className="app-dialog-btn app-dialog-btn-primary"
+                    onClick={() => void saveInstructions()}
+                    disabled={
+                      !memoryLoaded ||
+                      !instructionsDirty ||
+                      memoryLoading ||
+                      memorySaving
+                    }
+                  >
+                    {memorySaving ? "Saving…" : "Save instructions"}
+                  </button>
+                </div>
+                {memoryError && (
+                  <p className="app-settings-error">{memoryError}</p>
+                )}
+              </section>
             </div>
           ) : tab === "subagents" ? (
             <div className="app-settings-panel">

@@ -467,6 +467,22 @@
     @apply text-xs text-muted-foreground;
   }
 
+  .app-memory-section {
+    @apply flex-col items-stretch gap-3;
+  }
+
+  .app-memory-textarea {
+    @apply min-h-40 w-full resize-y rounded-md border bg-background px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-ring disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .app-memory-actions {
+    @apply flex items-center justify-between gap-3;
+  }
+
+  .app-memory-status {
+    @apply text-xs text-muted-foreground;
+  }
+
   .app-subagent-list {
     @apply flex flex-col gap-2;
   }
