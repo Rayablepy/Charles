@@ -72,7 +72,7 @@ export async function deleteFile(
 }
 
 export async function listMemoryFiles(): Promise<StoredFile[]> {
-  const response = await fetch(`${INGEST_API_URL}/memory/files`);
+  const response = await fetch(`${INGEST_API_URL}/usermemory/files`);
   if (!response.ok) throw new Error(await readError(response));
   const body = (await response.json()) as { files?: StoredFile[] };
   return body.files ?? [];
@@ -80,7 +80,7 @@ export async function listMemoryFiles(): Promise<StoredFile[]> {
 
 export async function deleteMemoryFile(path: string): Promise<void> {
   const response = await fetch(
-    `${INGEST_API_URL}/memory/file?path=${encodeURIComponent(path)}`,
+    `${INGEST_API_URL}/usermemory/file?path=${encodeURIComponent(path)}`,
     { method: "DELETE" },
   );
   if (!response.ok) throw new Error(await readError(response));

@@ -38,12 +38,7 @@ import {
   SUBAGENTS,
   type ConfiguredSubagent,
 } from "@/lib/subagents";
-import {
-  extractAdditionalInstructions,
-  mergeAdditionalInstructions,
-  readAgentDocument,
-  writeAgentDocument,
-} from "@/lib/agent-docs";
+import { readAgentMemory, saveAgentMemory } from "@/lib/agent-docs";
 
 type SettingsTab = "appearance" | "providers" | "subagents" | "memory";
 
@@ -66,7 +61,6 @@ export function SettingsDialog() {
   const [subagents, setSubagents] = useState<ConfiguredSubagent[]>([]);
   const [subagentSaving, setSubagentSaving] = useState<string | null>(null);
   const [subagentError, setSubagentError] = useState("");
-  const [userInfoContent, setUserInfoContent] = useState("");
   const [instructions, setInstructions] = useState("");
   const [savedInstructions, setSavedInstructions] = useState("");
   const [memoryLoading, setMemoryLoading] = useState(false);
@@ -89,12 +83,10 @@ export function SettingsDialog() {
     if (!open) return;
     listProviders().then(setProviders).catch(() => {});
     listSubagents().then(setSubagents).catch(() => {});
-    readAgentDocument("userinfo")
+    readAgentMemory()
       .then((content) => {
-        const next = extractAdditionalInstructions(content);
-        setUserInfoContent(content);
-        setInstructions(next);
-        setSavedInstructions(next);
+        setInstructions(content);
+        setSavedInstructions(content);
         setMemoryLoaded(true);
       })
       .catch((error) => setMemoryError(errorMessage(error)))
@@ -203,14 +195,12 @@ export function SettingsDialog() {
   };
 
   const saveInstructions = async () => {
-    if (memoryLoading || memorySaving) return;
+    if (!memoryLoaded || !instructionsDirty || memorySaving) return;
     setMemorySaving(true);
     setMemoryError("");
     setMemoryNotice("");
     try {
-      const content = mergeAdditionalInstructions(userInfoContent, instructions);
-      await writeAgentDocument("userinfo", content);
-      setUserInfoContent(content);
+      await saveAgentMemory(instructions);
       setSavedInstructions(instructions);
       setMemoryNotice("Saved.");
     } catch (error) {
@@ -341,7 +331,7 @@ export function SettingsDialog() {
                     Additional instructions
                   </p>
                   <p className="app-settings-card-note">
-                    Kept in its own section of agent memory.
+                    Edit the instructions Charles follows in every conversation.
                   </p>
                 </div>
                 <textarea
@@ -349,8 +339,8 @@ export function SettingsDialog() {
                   aria-label="Additional instructions"
                   value={instructions}
                   onChange={(event) => setInstructions(event.target.value)}
-                  placeholder="Always answer concisely and ask before destructive changes."
-                  disabled={memoryLoading || memorySaving}
+                  placeholder="Add instructions for Charles."
+                  disabled={!memoryLoaded || memoryLoading || memorySaving}
                   rows={8}
                 />
                 <div className="app-memory-actions">
@@ -361,7 +351,7 @@ export function SettingsDialog() {
                         ? ""
                         : instructionsDirty
                           ? "Unsaved changes."
-                          : memoryNotice || "Changes apply to the next response."}
+                          : memoryNotice || "Instructions apply to the next response."}
                   </span>
                   <button
                     type="button"

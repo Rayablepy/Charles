@@ -24,6 +24,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from config.settings import PROJECT_ROOT
 from memory.vectorstore import delete_data,ingest_file, list_data,read_data,sanitize_name
 
+#ingest api configs
 HOST = os.getenv("INGEST_API_HOST", "127.0.0.1")
 PORT = int(os.getenv("INGEST_API_PORT", "2030"))
 MAX_UPLOAD_BYTES = 5 * 1024 * 1024
@@ -534,8 +535,8 @@ async def delete_project_file(path: str = Query(...)) -> dict:
 async def delete_skills_file(path: str = Query(...)) -> dict:
     return delete_scope_file("skills", path)
 
-@app.get("/memory/files")
-async def memory_files() -> dict:
+@app.get("/usermemory/files")
+async def usermemory_files() -> dict:
     files: list[dict] = []
     for source in list_data():
         name = os.path.basename(source)
@@ -562,8 +563,8 @@ async def memory_files() -> dict:
     return {"files": files}
 
 
-@app.delete("/memory/file")
-async def delete_memory_file(path: str = Query(...)) -> dict:
+@app.delete("/usermemory/file")
+async def delete_usermemory_file(path: str = Query(...)) -> dict:
     try:
         source = sanitize_name(path)
     except ValueError as exc:
