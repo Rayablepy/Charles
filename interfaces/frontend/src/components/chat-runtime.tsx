@@ -49,6 +49,7 @@ export function ChatRuntimeProvider({
   );
 
   const runtime = useLangGraphRuntime({
+    autoCancelPendingToolCalls: false,
     unstable_allowCancellation: true,
     unstable_threadListAdapter: threadListAdapter,
     threadId,

@@ -23,6 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from config.settings import PROJECT_ROOT
 from memory.vectorstore import delete_data,ingest_file, list_data,read_data,sanitize_name
+from utils.agent_docs import read_document, write_document
 
 #ingest api configs
 HOST = os.getenv("INGEST_API_HOST", "127.0.0.1")
@@ -37,6 +38,12 @@ SKILL_FILE_NAME = "SKILL.md"
 SKILL_NAME_MAX = 64
 SKILL_FRONTMATTER = re.compile(r"^---\s*\n(.*?)\n---\s*(?:\n|$)", re.DOTALL)
 PROVIDER_CONFIG_PATH = PROJECT_ROOT / "provider.json"
+AGENT_MEMORY_DOC = "userinfo"
+ADDITIONAL_INSTRUCTIONS_HEADING = "## Additional instructions"
+INSTRUCTIONS_HEADING = re.compile(
+    r"^##\s+additional instructions\s*$", re.IGNORECASE | re.MULTILINE
+)
+NEXT_HEADING = re.compile(r"^#{1,2}\s", re.MULTILINE)
 
 #pydantic outputs for fastapi endpoints
 class ProviderConfig(BaseModel):
@@ -51,6 +58,9 @@ class SubagentConfig(BaseModel):
     subagent:str
     enabled:bool=True
     model:str
+
+class AgentMemory(BaseModel):
+    content: str
 
 JOBS: dict[str, dict] = {}
 QUEUE: queue.Queue[str] = queue.Queue()
@@ -534,6 +544,61 @@ async def delete_project_file(path: str = Query(...)) -> dict:
 @app.delete("/skills/file")
 async def delete_skills_file(path: str = Query(...)) -> dict:
     return delete_scope_file("skills", path)
+
+def find_instructions_section(content: str) -> tuple[int, int] | None:
+    match = INSTRUCTIONS_HEADING.search(content)
+    if match is None:
+        return None
+    body_start = match.end()
+    next_heading = NEXT_HEADING.search(content[body_start:])
+    end = body_start + next_heading.start() if next_heading else len(content)
+    return match.start(), end
+
+
+def extract_instructions(content: str) -> str:
+    section = find_instructions_section(content)
+    if section is None:
+        return ""
+    start, end = section
+    heading = INSTRUCTIONS_HEADING.match(content, start)
+    if heading is None:
+        return ""
+    return content[heading.end():end].strip()
+
+
+def merge_instructions(content: str, instructions: str) -> str:
+    section = instructions.strip()
+    block = (
+        f"{ADDITIONAL_INSTRUCTIONS_HEADING}\n\n{section}" if section else ""
+    )
+    current = find_instructions_section(content)
+    if current is None:
+        if not block:
+            return content
+        base = content.rstrip()
+        return f"{base}\n\n{block}\n" if base else f"{block}\n"
+    start, end = current
+    before = content[:start].rstrip()
+    after = content[end:].strip()
+    body = "\n\n".join(part for part in (before, block, after) if part)
+    return f"{body}\n" if body else ""
+
+
+@app.get("/agentmemory")
+async def get_agent_memory() -> dict:
+    document = await read_document(AGENT_MEMORY_DOC)
+    content = document.get("content", "") if document else ""
+    return {"content": extract_instructions(content)}
+
+
+@app.post("/agentmemory")
+async def update_agent_memory(memory: AgentMemory) -> dict:
+    document = await read_document(AGENT_MEMORY_DOC)
+    content = document.get("content", "") if document else ""
+    merged = merge_instructions(content, memory.content)
+    await write_document(AGENT_MEMORY_DOC, merged)
+    return {"ok": True}
+
 
 @app.get("/usermemory/files")
 async def usermemory_files() -> dict:

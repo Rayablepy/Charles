@@ -6,7 +6,7 @@ async function readError(response: Response): Promise<string> {
     if (typeof body.detail === "string" && body.detail) return body.detail;
   } catch {
     /* response was not JSON */
-  }
+  } 
   return `request failed (${response.status})`;
 }
 
