@@ -1,0 +1,580 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  ArrowLeftIcon,
+  BotIcon,
+  BrainIcon,
+  EyeIcon,
+  EyeOffIcon,
+  MoonIcon,
+  PaletteIcon,
+  PlugIcon,
+  SettingsIcon,
+  SunIcon,
+} from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { cn } from "@/lib/utils";
+import { applyTheme, readTheme, type Theme } from "@/lib/theme";
+import {
+  FEATURED_PROVIDERS,
+  listProviders,
+  removeProviderConfig,
+  saveProviderConfig,
+  activateProvider,
+  verifyProvider,
+  type ConfiguredProvider,
+  type Provider,
+} from "@/lib/providers";
+import {
+  listSubagents,
+  setSubagentEnabled,
+  SUBAGENTS,
+  type ConfiguredSubagent,
+} from "@/lib/subagents";
+import { readAgentMemory, saveAgentMemory } from "@/lib/agent-docs";
+
+type SettingsTab = "appearance" | "providers" | "subagents" | "memory";
+
+function errorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
+const TABS: { id: SettingsTab; label: string; icon: typeof PaletteIcon }[] = [
+  { id: "appearance", label: "Appearance", icon: PaletteIcon },
+  { id: "providers", label: "Providers", icon: PlugIcon },
+  { id: "subagents", label: "Subagents", icon: BotIcon },
+  { id: "memory", label: "Agent memory", icon: BrainIcon },
+];
+
+export function SettingsDialog() {
+  const [open, setOpen] = useState(false);
+  const [tab, setTab] = useState<SettingsTab>("appearance");
+  const [theme, setTheme] = useState<Theme>(() => readTheme());
+  const [providers, setProviders] = useState<ConfiguredProvider[]>([]);
+  const [subagents, setSubagents] = useState<ConfiguredSubagent[]>([]);
+  const [subagentSaving, setSubagentSaving] = useState<string | null>(null);
+  const [subagentError, setSubagentError] = useState("");
+  const [instructions, setInstructions] = useState("");
+  const [savedInstructions, setSavedInstructions] = useState("");
+  const [memoryLoading, setMemoryLoading] = useState(false);
+  const [memoryLoaded, setMemoryLoaded] = useState(false);
+  const [memorySaving, setMemorySaving] = useState(false);
+  const [memoryError, setMemoryError] = useState("");
+  const [memoryNotice, setMemoryNotice] = useState("");
+  const [activeProviderId, setActiveProviderId] = useState<string | null>(null);
+  const [draftModel, setDraftModel] = useState("");
+  const [draftKey, setDraftKey] = useState("");
+  const [keyVisible, setKeyVisible] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  useEffect(() => {
+    if (!open) return;
+    listProviders().then(setProviders).catch(() => {});
+    listSubagents().then(setSubagents).catch(() => {});
+    readAgentMemory()
+      .then((content) => {
+        setInstructions(content);
+        setSavedInstructions(content);
+        setMemoryLoaded(true);
+      })
+      .catch((error) => setMemoryError(errorMessage(error)))
+      .finally(() => setMemoryLoading(false));
+  }, [open]);
+
+  const activeProvider =
+    FEATURED_PROVIDERS.find((provider) => provider.id === activeProviderId) ??
+    null;
+  const savedConfig =
+    providers.find((provider) => provider.provider === activeProviderId) ??
+    null;
+
+  const canSave =
+    activeProvider !== null &&
+    draftModel.trim().length > 0 &&
+    (activeProvider.keyOptional === true ||
+      savedConfig !== null ||
+      draftKey.trim().length > 0);
+  const instructionsDirty = instructions !== savedInstructions;
+
+  const closeProvider = () => {
+    setActiveProviderId(null);
+    setKeyVisible(false);
+    setSaveError("");
+  };
+
+  const startProvider = (provider: Provider) => {
+    const existing =
+      providers.find((item) => item.provider === provider.id) ?? null;
+    setActiveProviderId(provider.id);
+    setDraftModel(existing?.model ?? "");
+    setDraftKey("");
+    setKeyVisible(false);
+    setSaveError("");
+  };
+
+  const saveProvider = async () => {
+    if (!activeProvider || !canSave || saving) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      await saveProviderConfig(
+        activeProvider.id,
+        draftModel.trim(),
+        draftKey.trim(),
+      );
+      setProviders(await listProviders());
+      await verifyProvider().catch(() => {});
+      closeProvider();
+    } catch (error) {
+      setSaveError(errorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const activateSavedProvider = async () => {
+    if (!activeProvider || !savedConfig || saving) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      await activateProvider(activeProvider.id);
+      const verified = await verifyProvider();
+      setProviders(await listProviders());
+      if (!verified) {
+        setSaveError("Provider could not be verified.");
+        return;
+      }
+      closeProvider();
+    } catch (error) {
+      setSaveError(errorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeProvider = async () => {
+    if (!activeProvider || !savedConfig || saving) return;
+    setSaving(true);
+    setSaveError("");
+    try {
+      await removeProviderConfig(activeProvider.id);
+      setProviders(await listProviders());
+      await verifyProvider().catch(() => {});
+      closeProvider();
+    } catch (error) {
+      setSaveError(errorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const toggleSubagent = async (subagent: string, enabled: boolean) => {
+    if (subagentSaving) return;
+    setSubagentSaving(subagent);
+    setSubagentError("");
+    try {
+      await setSubagentEnabled(subagent, enabled);
+      setSubagents(await listSubagents());
+    } catch (error) {
+      setSubagentError(errorMessage(error));
+    } finally {
+      setSubagentSaving(null);
+    }
+  };
+
+  const saveInstructions = async () => {
+    if (!memoryLoaded || !instructionsDirty || memorySaving) return;
+    setMemorySaving(true);
+    setMemoryError("");
+    setMemoryNotice("");
+    try {
+      await saveAgentMemory(instructions);
+      setSavedInstructions(instructions);
+      setMemoryNotice("Saved.");
+    } catch (error) {
+      setMemoryError(errorMessage(error));
+    } finally {
+      setMemorySaving(false);
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) {
+          setMemoryLoading(true);
+          setMemoryLoaded(false);
+          setMemoryError("");
+          setMemoryNotice("");
+        } else {
+          closeProvider();
+        }
+      }}
+    >
+      <DialogTrigger
+        className="app-settings-trigger"
+        aria-label="Open settings"
+        title="Settings"
+      >
+        <SettingsIcon className="size-4" />
+      </DialogTrigger>
+      <DialogContent className="app-settings-dialog">
+        <aside className="app-settings-rail">
+          <div className="app-settings-rail-header">
+            <DialogTitle className="app-settings-rail-title">
+              Settings
+            </DialogTitle>
+            <DialogDescription className="sr-only">
+              Manage appearance, providers, subagents, and agent memory.
+            </DialogDescription>
+          </div>
+          <nav className="app-settings-nav" aria-label="Settings sections">
+            {TABS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                className={cn(
+                  "app-settings-nav-item",
+                  tab === id && "app-settings-nav-item-active",
+                )}
+                onClick={() => {
+                  setTab(id);
+                  closeProvider();
+                }}
+                aria-current={tab === id ? "true" : undefined}
+              >
+                <Icon className="size-4" />
+                <span>{label}</span>
+                {id === "providers" && providers.length > 0 && (
+                  <span className="app-settings-nav-count">
+                    {providers.length}
+                  </span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </aside>
+
+        <section className="app-settings-main">
+          {tab === "appearance" ? (
+            <div className="app-settings-panel">
+              <header className="app-settings-header">
+                <h2 className="app-settings-title">Appearance</h2>
+                <p className="app-settings-note">
+                  Choose how Charles looks while you work.
+                </p>
+              </header>
+              <div className="app-settings-card">
+                <div className="app-settings-card-text">
+                  <p className="app-settings-card-title">Theme</p>
+                  <p className="app-settings-card-note">
+                    Switch between light and dark mode.
+                  </p>
+                </div>
+                <div
+                  className="app-theme-switch"
+                  role="group"
+                  aria-label="Theme"
+                >
+                  <button
+                    type="button"
+                    className={cn(
+                      "app-theme-option",
+                      theme === "light" && "app-theme-option-active",
+                    )}
+                    onClick={() => setTheme("light")}
+                    aria-pressed={theme === "light"}
+                  >
+                    <SunIcon className="size-3.5" />
+                    <span>Light</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={cn(
+                      "app-theme-option",
+                      theme === "dark" && "app-theme-option-active",
+                    )}
+                    onClick={() => setTheme("dark")}
+                    aria-pressed={theme === "dark"}
+                  >
+                    <MoonIcon className="size-3.5" />
+                    <span>Dark</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : tab === "memory" ? (
+            <div className="app-settings-panel">
+              <header className="app-settings-header">
+                <h2 className="app-settings-title">Agent memory</h2>
+                <p className="app-settings-note">
+                  Add standing instructions that Charles follows in every conversation.
+                </p>
+              </header>
+              <section className="app-settings-card app-memory-section">
+                <div className="app-settings-card-text">
+                  <p className="app-settings-card-title">
+                    Additional instructions
+                  </p>
+                  <p className="app-settings-card-note">
+                    Edit the instructions Charles follows in every conversation.
+                  </p>
+                </div>
+                <textarea
+                  className="app-memory-textarea"
+                  aria-label="Additional instructions"
+                  value={instructions}
+                  onChange={(event) => setInstructions(event.target.value)}
+                  placeholder="Add instructions for Charles."
+                  disabled={!memoryLoaded || memoryLoading || memorySaving}
+                  rows={8}
+                />
+                <div className="app-memory-actions">
+                  <span className="app-memory-status">
+                    {memoryLoading
+                      ? "Loading…"
+                      : memoryError
+                        ? ""
+                        : instructionsDirty
+                          ? "Unsaved changes."
+                          : memoryNotice || "Instructions apply to the next response."}
+                  </span>
+                  <button
+                    type="button"
+                    className="app-dialog-btn app-dialog-btn-primary"
+                    onClick={() => void saveInstructions()}
+                    disabled={
+                      !memoryLoaded ||
+                      !instructionsDirty ||
+                      memoryLoading ||
+                      memorySaving
+                    }
+                  >
+                    {memorySaving ? "Saving…" : "Save instructions"}
+                  </button>
+                </div>
+                {memoryError && (
+                  <p className="app-settings-error">{memoryError}</p>
+                )}
+              </section>
+            </div>
+          ) : tab === "subagents" ? (
+            <div className="app-settings-panel">
+              <header className="app-settings-header">
+                <h2 className="app-settings-title">Subagents</h2>
+                <p className="app-settings-note">
+                  Choose which subagents Charles can use.
+                </p>
+              </header>
+              <div className="app-subagent-list">
+                {SUBAGENTS.map(({ id, name }) => {
+                  const enabled =
+                    subagents.find((item) => item.subagent === id)?.enabled ??
+                    true;
+                  return (
+                    <div className="app-settings-card" key={id}>
+                      <span className="app-subagent-name">{name}</span>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={enabled}
+                        aria-label={`Toggle ${name}`}
+                        className={cn(
+                          "app-subagent-switch",
+                          enabled && "app-subagent-switch-on",
+                        )}
+                        disabled={subagentSaving !== null}
+                        onClick={() => void toggleSubagent(id, !enabled)}
+                      >
+                        <span className="app-subagent-switch-thumb" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+              {subagentError && (
+                <p className="app-settings-error">{subagentError}</p>
+              )}
+            </div>
+          ) : activeProvider ? (
+            <div className="app-settings-panel">
+              <button
+                type="button"
+                className="app-settings-back"
+                onClick={closeProvider}
+              >
+                <ArrowLeftIcon className="size-3.5" />
+                <span>All providers</span>
+              </button>
+              <header className="app-settings-header">
+                <h2 className="app-settings-title">{activeProvider.label}</h2>
+              </header>
+              <form
+                className="app-settings-form"
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  void saveProvider();
+                }}
+              >
+                <div className="app-field">
+                  <label className="app-field-label" htmlFor="provider-model">
+                    Model name
+                  </label>
+                  <input
+                    id="provider-model"
+                    autoFocus
+                    className="app-field-input"
+                    value={draftModel}
+                    onChange={(event) => setDraftModel(event.target.value)}
+                    placeholder={activeProvider.defaultModel}
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="app-field">
+                  <label className="app-field-label" htmlFor="provider-key">
+                    API key
+                    {activeProvider.keyOptional ? " (optional)" : ""}
+                  </label>
+                  <span className="app-field-row">
+                    <input
+                      id="provider-key"
+                      className="app-field-row-input"
+                      type={keyVisible ? "text" : "password"}
+                      value={draftKey}
+                      onChange={(event) => setDraftKey(event.target.value)}
+                      placeholder={
+                        activeProvider.keyOptional
+                          ? "Not required"
+                          : savedConfig
+                            ? "Leave blank to keep saved key"
+                            : "sk-..."
+                      }
+                      autoComplete="off"
+                    />
+                    <button
+                      type="button"
+                      className="app-field-eye"
+                      onClick={() => setKeyVisible((current) => !current)}
+                      aria-label={
+                        keyVisible ? "Hide API key" : "Show API key"
+                      }
+                    >
+                      {keyVisible ? (
+                        <EyeOffIcon className="size-3.5" />
+                      ) : (
+                        <EyeIcon className="size-3.5" />
+                      )}
+                    </button>
+                  </span>
+                </div>
+                {saveError && (
+                  <p className="app-settings-error">{saveError}</p>
+                )}
+                <div className="app-settings-actions">
+                  {savedConfig && (
+                    <button
+                      type="button"
+                      className="app-dialog-btn app-settings-remove"
+                      onClick={() => void removeProvider()}
+                      disabled={saving}
+                    >
+                      Remove
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="app-dialog-btn"
+                    onClick={closeProvider}
+                  >
+                    Cancel
+                  </button>
+                  {savedConfig && !savedConfig.active && (
+                    <button
+                      type="button"
+                      className="app-dialog-btn app-dialog-btn-primary"
+                      onClick={() => void activateSavedProvider()}
+                      disabled={saving}
+                    >
+                      Use
+                    </button>
+                  )}
+                  <button
+                    type="submit"
+                    className={cn(
+                      "app-dialog-btn",
+                      (!savedConfig || savedConfig.active) &&
+                        "app-dialog-btn-primary",
+                    )}
+                    disabled={!canSave || saving}
+                  >
+                    {saving ? "Saving…" : "Save"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <div className="app-settings-panel">
+              <header className="app-settings-header">
+                <h2 className="app-settings-title">Providers</h2>
+              </header>
+              <div className="app-provider-grid">
+                {FEATURED_PROVIDERS.map((provider) => {
+                  const saved = providers.find(
+                    (item) => item.provider === provider.id,
+                  );
+                  const enabled = saved?.active === true;
+                  return (
+                    <button
+                      key={provider.id}
+                      type="button"
+                      className={cn(
+                        "app-provider-card",
+                        enabled && "app-provider-card-enabled",
+                      )}
+                      onClick={() => startProvider(provider)}
+                    >
+                      <span className="app-provider-info">
+                        <span className="app-provider-name">
+                          {provider.label}
+                        </span>
+                      </span>
+                      <span
+                        className={cn(
+                          "app-provider-status",
+                          saved && !enabled && "app-provider-status-configured",
+                          enabled && "app-provider-status-selected",
+                        )}
+                        aria-hidden="true"
+                      />
+                      <span className="sr-only">
+                        {enabled
+                          ? "Selected"
+                          : saved
+                            ? "Configured"
+                            : "Not configured"}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </section>
+      </DialogContent>
+    </Dialog>
+  );
+}

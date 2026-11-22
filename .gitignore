@@ -1,8 +1,11 @@
 .env
 localAgent.db
 chroma_langchain_db
+charles_chroma_db
 .venv
 .idea
 __pycache__
 localAgent_PROJECT_OUTLINE.md
 database/database.db
+.langgraph_api/
+.openidea

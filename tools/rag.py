@@ -1,5 +1,5 @@
 from langchain_core.tools import tool
-from memory.vectorstore import _get_retriever
+from memory.vectorstore import get_retriever
 
 @tool
 async def query_data(query: str) -> str:
@@ -11,7 +11,7 @@ async def query_data(query: str) -> str:
     Returns:
         str: The matching results from the database
     """
-    results = await _get_retriever().ainvoke(query)
+    results = await get_retriever().ainvoke(query)
     lines = []
     for doc in results:
         source = doc.metadata.get("source", "unknown")

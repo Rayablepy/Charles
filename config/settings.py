@@ -1,69 +1,168 @@
+import hashlib
+import json
 import os
 from dotenv import load_dotenv
+from importlib import import_module
 from pathlib import Path
 
 from langchain.chat_models import init_chat_model
-from langchain_openrouter import ChatOpenRouter
-
+from langfuse import get_client
+from langfuse.langchain import CallbackHandler
 load_dotenv()
-
-#tool list that agent will have access to, update when tools are added or removed
-ENABLED_TOOLS: list[str] = [
-    "rag",
-    "todo/notes",
-    "calendar",
-]
-ENABLED_SUBAGENTS: list[str] = [
-    "web_agent"
-]
-
+#Langfuse tracing, configure on/off by setting default to bool value
+def check_langfuse(langfuse_enabled=True):
+    langfuse=get_client()
+    if langfuse.auth_check() and langfuse_enabled:
+        print("Langfuse auth passed, tracing enabled")
+        handler=CallbackHandler()
+        return handler
+    else:
+        print("Langfuse auth failed,tracing disabled")
+        return None
 #Model constants
 CHAT_MODEL_NAME=os.getenv("CHAT_MODEL_NAME")
-OPENROUTER_CHAT_MODEL_NAME="openrouter/free"
-OPENROUTER_API_KEY=os.getenv("OPENROUTER_API_KEY")
 LOCAL_MODEL_NAME=os.getenv("LOCAL_MODEL_NAME")
-LOCAL_EMBEDDING_MODEL_NAME=os.getenv("LOCAL_EMBEDDING_MODEL_NAME")
-MODEL_BASE_URL = "https://openrouter.ai/api/v1"
+EMBEDDING_MODEL_NAME=os.getenv("EMBEDDING_MODEL_NAME")
 MODEL_PROVIDER = "openai"
 LOCAL_MODEL_BASE_URL = "http://localhost:1234/v1"
 
+PROJECT_ROOT = Path.home() / ".Charles"
+PROVIDER_CONFIG_PATH = PROJECT_ROOT / "provider.json"
+SUBAGENT_CONFIG_PATH = PROJECT_ROOT / "subagents.json"
+'''
 if LOCAL_MODEL_NAME:
     LOCAL_MODEL= init_chat_model(
         model=LOCAL_MODEL_NAME,
         model_provider=MODEL_PROVIDER,
         base_url=LOCAL_MODEL_BASE_URL,
-        api_key=OPENROUTER_API_KEY, #this can be anything but i am just using the existing api key var
+        api_key="smth", #this can be anything
     )
 else:
     LOCAL_MODEL= None
+'''
 
-MAIN_MODEL = ChatOpenRouter(
-    model=OPENROUTER_CHAT_MODEL_NAME,
-    base_url=MODEL_BASE_URL,
-    api_key=OPENROUTER_API_KEY,
-    openrouter_provider={"max_price": {"prompt": 0, "completion": 0}},
-)
-
-# directory that file system tool has access to (dedicated agent sandbox)
-PROJECT_ROOT = Path.home() / ".Charles"
-
-#(not yet fully implemented) read-only directories the agent can look into but never write to
-READONLY_PATHS: list[Path] = [
-    Path.home() / "Documents",
-]
-
-#(not yet fully implemented) high risk tools that require approval
-REQUIRE_APPROVAL: set[str] = {
-    "send_email",
-    "delete_file",
-    "run_shell_command",
-    "create_calendar_event",
-    "send_message",
+#Provider json handling
+# provider id to model harness
+PROVIDER_HARNESSES = {
+    "azure-openai": "azure_openai",
+    "openai": "openai",
+    "anthropic": "anthropic",
+    "google": "google_genai",
+    "ollama": "ollama",
+    "groq": "groq",
+    "litellm": "litellm",
+    "mistral": "mistralai",
+    "openrouter": "openrouter",
+    "xai": "xai",
+    "deepseek": "deepseek",
+    "nvidia": "nvidia",
+    "together": "together",
 }
+
+# init_chat_model has no harness for these
+PROVIDER_CLASSES = {
+    "databricks": ("databricks_langchain", "ChatDatabricks"),
+    "amazon-nova": ("langchain_amazon_nova", "ChatAmazonNova"),
+}
+#Optional params for model building
+MODEL_PARAM_NAMES = ("temperature", "max_tokens", "timeout", "max_retries", "base_url")
+
+#hash saved provider details
+def provider_config_signature():
+    try:
+        return hashlib.sha256(PROVIDER_CONFIG_PATH.read_bytes()).hexdigest()
+    except OSError:
+        return None
+#read provider details from provider.json
+def read_provider_configs():
+    try:
+        configs = json.loads(PROVIDER_CONFIG_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(configs, list):
+        return []
+    return [config for config in configs if isinstance(config, dict)]
+#locate a single provider config
+def find_provider_config(configs, provider_name=None):
+    if provider_name is None:
+        return next((item for item in configs if item.get("active") is True), None)
+    return next(
+        (item for item in configs if str(item.get("provider") or "").strip() == provider_name),
+        None,
+    )
+#read subagent details from subagents.json
+def read_subagent_configs():
+    try:
+        configs = json.loads(SUBAGENT_CONFIG_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    if not isinstance(configs, list):
+        return []
+    return [config for config in configs if isinstance(config, dict)]
+
+#write subagent details to subagents.json
+def write_subagent_configs(configs):
+    SUBAGENT_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    SUBAGENT_CONFIG_PATH.write_text(json.dumps(configs), encoding="utf-8")
+
+#locate a single subagent config
+def find_subagent_config(configs, name):
+    return next(
+        (config for config in configs if str(config.get("subagent") or "").strip() == name),
+        None,
+    )
+
+#hash saved subagent details
+def subagent_config_signature():
+    try:
+        return hashlib.sha256(SUBAGENT_CONFIG_PATH.read_bytes()).hexdigest()
+    except OSError:
+        return None
+
+#resolve configured subagent state
+def subagent_enabled(name, default=True):
+    config = find_subagent_config(read_subagent_configs(), name)
+    if config is None:
+        return default
+    return config.get("enabled", default) is True
+
+#hash all agent-building config
+def agent_config_signature():
+    return provider_config_signature(), subagent_config_signature()
+
+#construct provider model
+def build_provider_model():
+    config = find_provider_config(read_provider_configs())
+    if config is None:
+        return None
+
+    provider = str(config.get("provider") or "").strip()
+    model = str(config.get("model") or "").strip()
+    api_key = str(config.get("api_key") or "").strip()
+    if not provider or not model:
+        return None
+    if not api_key and provider != "ollama":
+        return None
+
+    params = {}
+    if api_key:
+        params["api_key"] = api_key
+    for name in MODEL_PARAM_NAMES:
+        if config.get(name) is not None:
+            params[name] = config[name]
+    harness = PROVIDER_HARNESSES.get(provider)
+    if harness:
+        return init_chat_model(model=model, model_provider=harness, **params)
+    target = PROVIDER_CLASSES.get(provider)
+    if not target:
+        return None
+    module = import_module(target[0])
+    return getattr(module, target[1])(model=model, **params)
+
 # Persistence
 
 DB_PATH = Path(__file__).resolve().parent.parent / "database" / "database.db"
-CHROMA_PERSIST_DIR = Path(__file__).resolve().parent.parent / "chroma_langchain_db"
+CHROMA_PERSIST_DIR = Path(__file__).resolve().parent.parent / "charles_chroma_db"
 
 # Retrieval
 
@@ -71,10 +170,91 @@ EMBEDDING_MODEL_CONTEXT=int(os.getenv("EMBEDDING_MODEL_CONTEXT", 512))
 EMBEDDING_MODEL_CHUNK=int(os.getenv("EMBEDDING_MODEL_CHUNK", 64))
 RAG_TOP_K = 4
 
-# Web tool limits (not yet implemented)
+# Browser CLI limits and safety
+BROWSER_MAX_OUTPUT = int(os.getenv("BROWSER_MAX_OUTPUT", "20000"))
+BROWSER_COMMAND_TIMEOUT = int(os.getenv("BROWSER_TIMEOUT", "90"))
 
-WEB_SEARCH_MAX_RESULTS = 5
-WEB_FETCH_TIMEOUT_SECONDS = 15
+BROWSER_IDLE_TIMEOUT = os.getenv("BROWSER_IDLE_TIMEOUT", "3600")
+BROWSER_READ_COMMANDS = {
+    "read",
+    "open",
+    "snapshot",
+    "get",
+    "is",
+    "wait",
+    "back",
+    "forward",
+    "reload",
+    "close",
+    "tab-list",
+}
+BROWSER_ACT_COMMANDS = {
+    "click",
+    "dblclick",
+    "fill",
+    "type",
+    "press",
+    "select",
+    "check",
+    "uncheck",
+    "hover",
+    "focus",
+    "scroll",
+    "drag",
+    "tab-new",
+    "tab-select",
+    "tab-close",
+}
 
-#MCP urls
-BROWSER_OS_URL="http://127.0.0.1:9010/mcp"
+BROWSER_FORBIDDEN_FLAGS = {
+    "-p",
+    "-s",
+    "--action-policy",
+    "--allow-file-access",
+    "--allowed-domains",
+    "--args",
+    "--auto-connect",
+    "--ca-cert",
+    "--cdp",
+    "--cdp-headers",
+    "--cdp-url",
+    "--config",
+    "--confirm-actions",
+    "--confirm-interactive",
+    "--device",
+    "--download-path",
+    "--engine",
+    "--enable",
+    "--executable-path",
+    "--extension",
+    "--idle-timeout",
+    "--ignore-https-errors",
+    "--init-script",
+    "--max-output",
+    "--model",
+    "--no-ca-cert",
+    "--profile",
+    "--provider",
+    "--proxy",
+    "--proxy-bypass",
+    "--restore",
+    "--screenshot-dir",
+    "--session",
+    "--session-name",
+    "--state",
+    "--use-system-ca",
+    "--user-agent",
+    "--user-data-dir",
+}
+
+#sandbox env vars
+#sandbox base port
+SANDBOX_PORT_NUMBER=7000
+#sandbox api key
+SANDBOX_API_KEY="Charles"
+#sandbox path
+CONFIG_PATH=str(Path.home() / ".sandbox.toml")
+
+#other env vars
+WEB_ENABLED={"0":False,"1":True}[str(os.getenv("WEB_ENABLED",0)).strip().lower()]
+SANDBOX_ENABLED=os.getenv("SANDBOX_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}

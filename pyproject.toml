@@ -22,4 +22,13 @@ dependencies = [
     "textract>=2.0.0",
     "torch>=2.13.0",
     "transformers>=5.14.1",
+    "langgraph-cli[inmem]>=0.4.31",
+    "fastapi>=0.141.1",
+    "click>=8.4.2",
+    "browser-use>=0.11.13",
+    "xa11y>=0.15.3",
+    "langchain-deepseek>=1.1.1",
+    "langchain-sandbox-opensandbox>=0.1.2",
+    "tomlkit>=0.15.2",
+    "langfuse>=5.2.0",
 ]
