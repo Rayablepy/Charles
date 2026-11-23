@@ -1,9 +1,11 @@
+const path = require("node:path");
 const { app, BrowserWindow, shell } = require("electron");
 
 const DEV_URL =
   process.env.VITE_DEV_SERVER_URL ??
   process.env.ELECTRON_START_URL ??
   "http://127.0.0.1:5173/";
+const ICON_PATH = path.join(__dirname, "..", "assets", "Charles_logo.png");
 const RETRY_MS = 1000;
 
 let mainWindow = null;
@@ -42,6 +44,7 @@ function createWindow() {
     minWidth: 900,
     minHeight: 600,
     title: "Charles",
+    icon: ICON_PATH,
     backgroundColor: "#0b0b0f",
     show: false,
     webPreferences: {
@@ -77,6 +80,7 @@ function createWindow() {
 app.setName("Charles");
 
 app.whenReady().then(() => {
+  if (process.platform === "darwin") app.dock.setIcon(ICON_PATH);
   createWindow();
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
