@@ -11,8 +11,19 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from http import HTTPStatus
 from pathlib import Path
-from config.settings import (CHROMA_PERSIST_DIR,build_provider_model,find_provider_config,find_subagent_config,
-read_provider_configs,read_subagent_configs,write_subagent_configs)
+from config.settings import (
+    CHROMA_PERSIST_DIR,
+    DEFAULT_INGEST_PORT,
+    INGEST_HOST,
+    PROJECT_ROOT,
+    PROVIDER_CONFIG_PATH,
+    build_provider_model,
+    find_provider_config,
+    find_subagent_config,
+    read_provider_configs,
+    read_subagent_configs,
+    write_subagent_configs,
+)
 
 from fastapi import FastAPI, File, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -21,29 +32,29 @@ import yaml
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config.settings import PROJECT_ROOT
 from memory.vectorstore import delete_data,ingest_file, list_data,read_data,sanitize_name
 from utils.agent_docs import read_document, write_document
 
-#ingest api configs
-HOST = os.getenv("INGEST_API_HOST", "127.0.0.1")
-PORT = int(os.getenv("INGEST_API_PORT", "2030"))
-MAX_UPLOAD_BYTES = 5 * 1024 * 1024
-TRANSCRIBE_MAX_CHARS = 100_000
-STAGING_PREFIX = "rag-upload-"
-TERMINAL = {"indexed", "already-indexed", "failed"}
-FILE_MAX_BYTES = 512 * 1024
-FILE_LIST_LIMIT = 5000
-SKILL_FILE_NAME = "SKILL.md"
-SKILL_NAME_MAX = 64
-SKILL_FRONTMATTER = re.compile(r"^---\s*\n(.*?)\n---\s*(?:\n|$)", re.DOTALL)
-PROVIDER_CONFIG_PATH = PROJECT_ROOT / "provider.json"
-AGENT_MEMORY_DOC = "userinfo"
-ADDITIONAL_INSTRUCTIONS_HEADING = "## Additional instructions"
-INSTRUCTIONS_HEADING = re.compile(
+#ingest job settings
+max_upload_bytes = 5 * 1024 * 1024
+transcribe_max_chars = 100_000
+staging_prefix = "rag-upload-"
+terminal = {"indexed", "already-indexed", "failed"}
+file_max_bytes = 512 * 1024
+file_list_limit = 5000
+skill_file_name = "SKILL.md"
+skill_name_max = 64
+skill_frontmatter = re.compile(r"^---\s*\n(.*?)\n---\s*(?:\n|$)", re.DOTALL)
+agent_memory_doc = "userinfo"
+additional_instructions_heading = "## Additional instructions"
+instructions_heading = re.compile(
     r"^##\s+additional instructions\s*$", re.IGNORECASE | re.MULTILINE
 )
-NEXT_HEADING = re.compile(r"^#{1,2}\s", re.MULTILINE)
+next_heading_pattern = re.compile(r"^#{1,2}\s", re.MULTILINE)
+max_jobs = 200
+
+#ingest api config
+ingest_port = int(os.getenv("INGEST_API_PORT", str(DEFAULT_INGEST_PORT)))
 
 #pydantic outputs for fastapi endpoints
 class ProviderConfig(BaseModel):
@@ -64,12 +75,11 @@ class AgentMemory(BaseModel):
 
 JOBS: dict[str, dict] = {}
 QUEUE: queue.Queue[str] = queue.Queue()
-MAX_JOBS = 200
 
 #all helper functions
 def remember(job_id: str, job: dict) -> None:
     JOBS[job_id] = job
-    while len(JOBS) > MAX_JOBS:
+    while len(JOBS) > max_jobs:
         JOBS.pop(next(iter(JOBS)))
 
 def write_provider_configs(configs: list[dict]) -> None:
@@ -92,7 +102,7 @@ def worker_loop() -> None:
         job["status"] = "ingesting"
         try:
             result = ingest_file(job["path"], job["name"])
-            job["status"] = result if result in TERMINAL else "indexed"
+            job["status"] = result if result in terminal else "indexed"
         except Exception as e:
             job["status"] = "failed"
             job["error"] = sanitize_error(f"{type(e).__name__}: {e}")
@@ -213,13 +223,13 @@ async def stream_file(file: UploadFile, staging: str) -> int:
             if not chunk:
                 break
             size += len(chunk)
-            if size > MAX_UPLOAD_BYTES:
+            if size > max_upload_bytes:
                 raise HTTPException(
                     status_code=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
                     detail=(
                         f"{file.filename} is too large "
                         f"({size / (1024 * 1024):.1f} MB). "
-                        f"Maximum file size is {MAX_UPLOAD_BYTES // (1024 * 1024)} MB."
+                        f"Maximum file size is {max_upload_bytes // (1024 * 1024)} MB."
                     ),
                 )
             out.write(chunk)
@@ -236,7 +246,7 @@ async def upload(file: UploadFile | None = File(default=None)) -> dict:
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
-    staging = os.path.join(tempfile.gettempdir(), f"{STAGING_PREFIX}{uuid.uuid4()}")
+    staging = os.path.join(tempfile.gettempdir(), f"{staging_prefix}{uuid.uuid4()}")
     try:
         size = await stream_file(file, staging)
     except HTTPException:
@@ -276,7 +286,7 @@ async def transcribe(file: UploadFile | None = File(default=None)) -> dict:
 
     staging = os.path.join(
         tempfile.gettempdir(),
-        f"{STAGING_PREFIX}{uuid.uuid4()}{os.path.splitext(source)[1]}",
+        f"{staging_prefix}{uuid.uuid4()}{os.path.splitext(source)[1]}",
     )
     try:
         size = await stream_file(file, staging)
@@ -304,8 +314,8 @@ async def transcribe(file: UploadFile | None = File(default=None)) -> dict:
         except OSError:
             pass
 
-    if len(text) > TRANSCRIBE_MAX_CHARS:
-        text = text[:TRANSCRIBE_MAX_CHARS] + "\n[...transcript truncated...]"
+    if len(text) > transcribe_max_chars:
+        text = text[:transcribe_max_chars] + "\n[...transcript truncated...]"
     return {"ok": True, "source": source, "text": text}
 
 
@@ -336,7 +346,7 @@ def resolve_scope_path(scope: str, raw: str) -> Path:
 
 #handle skill files
 def validate_skill_name(name: str) -> str:
-    if len(name) > SKILL_NAME_MAX:
+    if len(name) > skill_name_max:
         raise HTTPException(status_code=400, detail="skill name exceeds 64 characters")
     if name.startswith("-") or name.endswith("-") or "--" in name:
         raise HTTPException(status_code=400, detail="skill name must use single hyphens")
@@ -354,7 +364,7 @@ def parse_skill_name(content: bytes) -> str:
         text = content.decode("utf-8-sig")
     except UnicodeDecodeError as exc:
         raise HTTPException(status_code=400, detail="SKILL.md must be UTF-8") from exc
-    match = SKILL_FRONTMATTER.match(text)
+    match = skill_frontmatter.match(text)
     if match is None:
         raise HTTPException(status_code=400, detail="SKILL.md needs YAML frontmatter")
     try:
@@ -405,7 +415,7 @@ def list_scope_files(scope: str) -> dict:
                     "full_path": str(full),
                 }
             )
-            if len(files) >= FILE_LIST_LIMIT:
+            if len(files) >= file_list_limit:
                 truncated = True
                 break
         if truncated:
@@ -421,7 +431,7 @@ def read_scope_file(scope: str, path: str) -> dict:
     try:
         stat = target.stat()
         with open(target, "rb") as handle:
-            data = handle.read(FILE_MAX_BYTES)
+            data = handle.read(file_max_bytes)
     except OSError as exc:
         raise HTTPException(status_code=500, detail="failed to read file") from exc
     binary = b"\x00" in data
@@ -504,19 +514,19 @@ async def upload_skill(file: UploadFile | None = File(default=None)) -> dict:
     if file is None or not file.filename:
         raise HTTPException(status_code=400, detail="missing file")
     source = os.path.basename(file.filename.replace("\\", "/"))
-    if source.lower() != SKILL_FILE_NAME.lower():
-        raise HTTPException(status_code=400, detail=f"file must be named {SKILL_FILE_NAME}")
-    content = await file.read(MAX_UPLOAD_BYTES + 1)
+    if source.lower() != skill_file_name.lower():
+        raise HTTPException(status_code=400, detail=f"file must be named {skill_file_name}")
+    content = await file.read(max_upload_bytes + 1)
     if not content:
         raise HTTPException(status_code=400, detail="empty file")
-    if len(content) > MAX_UPLOAD_BYTES:
+    if len(content) > max_upload_bytes:
         raise HTTPException(
             status_code=HTTPStatus.REQUEST_ENTITY_TOO_LARGE,
-            detail=f"skill file exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)} MB",
+            detail=f"skill file exceeds {max_upload_bytes // (1024 * 1024)} MB",
         )
     name = parse_skill_name(content)
     root = scope_dir("skills")
-    target = resolve_scope_path("skills", f"locked/{name}/{SKILL_FILE_NAME}")
+    target = resolve_scope_path("skills", f"locked/{name}/{skill_file_name}")
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_bytes(content)
@@ -546,11 +556,11 @@ async def delete_skills_file(path: str = Query(...)) -> dict:
     return delete_scope_file("skills", path)
 
 def find_instructions_section(content: str) -> tuple[int, int] | None:
-    match = INSTRUCTIONS_HEADING.search(content)
+    match = instructions_heading.search(content)
     if match is None:
         return None
     body_start = match.end()
-    next_heading = NEXT_HEADING.search(content[body_start:])
+    next_heading = next_heading_pattern.search(content[body_start:])
     end = body_start + next_heading.start() if next_heading else len(content)
     return match.start(), end
 
@@ -560,7 +570,7 @@ def extract_instructions(content: str) -> str:
     if section is None:
         return ""
     start, end = section
-    heading = INSTRUCTIONS_HEADING.match(content, start)
+    heading = instructions_heading.match(content, start)
     if heading is None:
         return ""
     return content[heading.end():end].strip()
@@ -569,7 +579,7 @@ def extract_instructions(content: str) -> str:
 def merge_instructions(content: str, instructions: str) -> str:
     section = instructions.strip()
     block = (
-        f"{ADDITIONAL_INSTRUCTIONS_HEADING}\n\n{section}" if section else ""
+        f"{additional_instructions_heading}\n\n{section}" if section else ""
     )
     current = find_instructions_section(content)
     if current is None:
@@ -586,17 +596,17 @@ def merge_instructions(content: str, instructions: str) -> str:
 
 @app.get("/agentmemory")
 async def get_agent_memory() -> dict:
-    document = await read_document(AGENT_MEMORY_DOC)
+    document = await read_document(agent_memory_doc)
     content = document.get("content", "") if document else ""
     return {"content": extract_instructions(content)}
 
 
 @app.post("/agentmemory")
 async def update_agent_memory(memory: AgentMemory) -> dict:
-    document = await read_document(AGENT_MEMORY_DOC)
+    document = await read_document(agent_memory_doc)
     content = document.get("content", "") if document else ""
     merged = merge_instructions(content, memory.content)
-    await write_document(AGENT_MEMORY_DOC, merged)
+    await write_document(agent_memory_doc, merged)
     return {"ok": True}
 
 
@@ -641,4 +651,4 @@ async def delete_usermemory_file(path: str = Query(...)) -> dict:
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host=HOST, port=PORT)
+    uvicorn.run(app, host=INGEST_HOST, port=ingest_port)

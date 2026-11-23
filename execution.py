@@ -11,26 +11,29 @@ from pathlib import Path
 
 import click
 
-ROOT = Path(__file__).resolve().parent
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-VENV_BIN = Path(sys.executable).parent
-PYTHON = sys.executable
-LANGGRAPH = VENV_BIN / ("langgraph.exe" if os.name == "nt" else "langgraph")
-FRONTEND = ROOT / "interfaces" / "frontend"
-
-CONNECT_TIMEOUT = 1.0
-HEALTH_TIMEOUT = 1.0
-BACKEND_MAX_WAIT = 60.0
-KILL_MAX_WAIT = 5.0
-TASKKILL_TIMEOUT = 15.0
+from config.settings import (
+    DEFAULT_BACKEND_PORT,
+    DEFAULT_INGEST_PORT,
+    DEFAULT_VITE_PORT,
+    ELECTRON_BIN,
+    FRONTEND_DIR,
+    LANGGRAPH_BIN,
+    POLL_INTERVAL,
+    PROBE_TIMEOUT,
+    PYTHON_BIN,
+    REPO_ROOT,
+    SHUTDOWN_WAIT,
+    STARTUP_WAIT,
+)
 
 
 def is_up(port: int) -> bool:
     for host in ("127.0.0.1", "::1"):
         try:
-            with socket.create_connection((host, port), timeout=CONNECT_TIMEOUT):
+            with socket.create_connection((host, port), timeout=PROBE_TIMEOUT):
                 return True
         except OSError:
             continue
@@ -42,12 +45,22 @@ def wait_up(port: int, max_wait: float) -> bool:
     deadline = time.time() + max_wait
     while time.time() < deadline:
         try:
-            with urllib.request.urlopen(url, timeout=HEALTH_TIMEOUT):
+            with urllib.request.urlopen(url, timeout=PROBE_TIMEOUT):
                 return True
         except Exception:
-            time.sleep(0.5)
+            time.sleep(POLL_INTERVAL)
     return False
 
+def wait_port(port: int, max_wait: float) -> bool:
+    deadline = time.time() + max_wait
+    while time.time() < deadline:
+        if is_up(port):
+            return True
+        time.sleep(POLL_INTERVAL)
+    return False
+
+def electron_path() -> Path | None:
+    return ELECTRON_BIN if ELECTRON_BIN.exists() else None
 
 def spawn(name: str, cwd: Path, argv: list, port: int, extra_env: dict | None = None):
     if is_up(port):
@@ -66,12 +79,12 @@ def kill(proc) -> None:
         subprocess.run(
             ["taskkill", "/PID", str(proc.pid), "/T", "/F"],
             capture_output=True,
-            timeout=TASKKILL_TIMEOUT,
+            timeout=SHUTDOWN_WAIT,
         )
     else:
         proc.terminate()
     try:
-        proc.wait(timeout=KILL_MAX_WAIT)
+        proc.wait(timeout=SHUTDOWN_WAIT)
     except subprocess.TimeoutExpired:
         pass
 
@@ -88,19 +101,20 @@ def cli():
 
 
 @main.command()
-@click.option("--backend-port", default=2024, show_default=True, help="langgraph dev server port")
-@click.option("--ingest-port", default=2030, show_default=True, help="document ingest API port")
-@click.option("--vite-port", default=5173, show_default=True, help="vite dev server port")
-@click.option("--backend-wait", default=BACKEND_MAX_WAIT, show_default=True,
+@click.option("--backend-port", default=DEFAULT_BACKEND_PORT, show_default=True, help="langgraph dev server port")
+@click.option("--ingest-port", default=DEFAULT_INGEST_PORT, show_default=True, help="document ingest API port")
+@click.option("--vite-port", default=DEFAULT_VITE_PORT, show_default=True, help="vite dev server port")
+@click.option("--backend-wait", default=STARTUP_WAIT, show_default=True,
               help="max seconds to wait for a cold backend to become ready")
-@click.option("--no-open", is_flag=True, help="do not open the browser")
-def web(backend_port, ingest_port, vite_port, backend_wait, no_open):
+@click.option("--no-open", is_flag=True, help="do not open Electron or a browser")
+@click.option("--browser", is_flag=True, help="open the system browser instead of Electron")
+def web(backend_port, ingest_port, vite_port, backend_wait, no_open, browser):
     procs = []
 
     backend = spawn(
         "langgraph backend",
-        ROOT,
-        [PYTHON, str(LANGGRAPH), "dev", "--host", "127.0.0.1",
+        REPO_ROOT,
+        [PYTHON_BIN, str(LANGGRAPH_BIN), "dev", "--host", "127.0.0.1",
          "--port", str(backend_port), "--no-browser", "--allow-blocking"],
         backend_port,
     )
@@ -111,8 +125,8 @@ def web(backend_port, ingest_port, vite_port, backend_wait, no_open):
 
     ingest = spawn(
         "ingest api",
-        ROOT,
-        [PYTHON, "-m", "interfaces.ingest"],
+        REPO_ROOT,
+        [PYTHON_BIN, "-m", "interfaces.ingest"],
         ingest_port,
         {"INGEST_API_HOST": "127.0.0.1", "INGEST_API_PORT": str(ingest_port)},
     )
@@ -123,19 +137,34 @@ def web(backend_port, ingest_port, vite_port, backend_wait, no_open):
     if npm:
         vite = spawn(
             "vite frontend",
-            FRONTEND,
+            FRONTEND_DIR,
             [npm, "run", "dev", "--", "--host", "127.0.0.1",
              "--port", str(vite_port), "--strictPort"],
             vite_port,
         )
         if vite:
             procs.append(vite)
+            if not wait_port(vite_port, STARTUP_WAIT):
+                click.echo(f"warning: vite not ready within {STARTUP_WAIT:.0f}s")
     else:
         click.echo("npm not found; skipping frontend")
 
-    url = f"http://localhost:{vite_port}/"
+    url = f"http://127.0.0.1:{vite_port}/"
+    electron_proc = None
     if not no_open:
-        webbrowser.open(url)
+        wrapper = None if browser else electron_path()
+        if wrapper is not None:
+            click.echo(f"starting electron wrapper -> {url} ...")
+            env = os.environ.copy()
+            env["VITE_DEV_SERVER_URL"] = url
+            electron_proc = subprocess.Popen(
+                [str(wrapper), "."], cwd=str(FRONTEND_DIR), env=env
+            )
+            procs.append(electron_proc)
+        else:
+            if not browser:
+                click.echo("electron not found; opening browser instead")
+            webbrowser.open(url)
     click.echo(f"{url}  (Ctrl+C to stop)")
 
     if not procs:
@@ -143,8 +172,12 @@ def web(backend_port, ingest_port, vite_port, backend_wait, no_open):
         return
 
     try:
-        while any(p.poll() is None for p in procs):
-            time.sleep(1)
+        if electron_proc is not None:
+            electron_proc.wait()
+            click.echo("\nelectron closed; shutting down ...")
+        else:
+            while any(p.poll() is None for p in procs):
+                time.sleep(POLL_INTERVAL)
     except KeyboardInterrupt:
         click.echo("\nshutting down ...")
     finally:
