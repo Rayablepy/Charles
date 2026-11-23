@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import sys
 from dotenv import load_dotenv
 from importlib import import_module
 from pathlib import Path
@@ -29,6 +30,25 @@ LOCAL_MODEL_BASE_URL = "http://localhost:1234/v1"
 PROJECT_ROOT = Path.home() / ".Charles"
 PROVIDER_CONFIG_PATH = PROJECT_ROOT / "provider.json"
 SUBAGENT_CONFIG_PATH = PROJECT_ROOT / "subagents.json"
+
+# Runtime process constants
+REPO_ROOT = Path(__file__).resolve().parent.parent
+FRONTEND_DIR = REPO_ROOT / "interfaces" / "frontend"
+PYTHON_BIN = sys.executable
+VENV_BIN = Path(PYTHON_BIN).parent
+LANGGRAPH_BIN = VENV_BIN / ("langgraph.exe" if os.name == "nt" else "langgraph")
+ELECTRON_BIN = FRONTEND_DIR / "node_modules" / ".bin" / (
+    "electron.cmd" if os.name == "nt" else "electron"
+)
+DEFAULT_BACKEND_PORT = 2024
+DEFAULT_INGEST_PORT = 2030
+DEFAULT_VITE_PORT = 5173
+
+# Shared timeouts and polling
+PROBE_TIMEOUT = 1.0
+STARTUP_WAIT = 60.0
+SHUTDOWN_WAIT = 5.0
+POLL_INTERVAL = 0.5
 '''
 if LOCAL_MODEL_NAME:
     LOCAL_MODEL= init_chat_model(
@@ -41,7 +61,7 @@ else:
     LOCAL_MODEL= None
 '''
 
-#Provider json handling
+# Provider json handling
 # provider id to model harness
 PROVIDER_HARNESSES = {
     "azure-openai": "azure_openai",
@@ -169,6 +189,9 @@ CHROMA_PERSIST_DIR = Path(__file__).resolve().parent.parent / "charles_chroma_db
 EMBEDDING_MODEL_CONTEXT=int(os.getenv("EMBEDDING_MODEL_CONTEXT", 512))
 EMBEDDING_MODEL_CHUNK=int(os.getenv("EMBEDDING_MODEL_CHUNK", 64))
 RAG_TOP_K = 4
+
+# Ingest API
+INGEST_HOST = "127.0.0.1"
 
 # Browser CLI limits and safety
 BROWSER_MAX_OUTPUT = int(os.getenv("BROWSER_MAX_OUTPUT", "20000"))
