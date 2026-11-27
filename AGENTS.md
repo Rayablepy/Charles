@@ -13,15 +13,16 @@
 
 ## Code flow
 
-`execution.py web` supervises three processes:
+`execution.py web` supervises three servers plus the Electron wrapper:
 
 | Process | Command | Port |
 | --- | --- | --- |
 | LangGraph API | `langgraph dev --host 127.0.0.1 --port 2024 --no-browser` | 2024 |
 | Ingest API | `python -m interfaces.ingest` | 2030 |
 | Vite | `npm run dev -- --host 127.0.0.1 --port 5173 --strictPort` | 5173 |
+| Electron | `npm run electron` | loads 5173 |
 
-Each port is probed before launch; a listening port is reused, not restarted.
+Each server port is probed before launch; a listening port is reused, not restarted. The Electron window loads the Vite URL, so HMR handles UI changes; closing it stops the supervised processes.
 
 ### Agent core
 
