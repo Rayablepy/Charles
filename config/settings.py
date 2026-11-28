@@ -87,21 +87,51 @@ PROVIDER_CLASSES = {
 #Optional params for model building
 MODEL_PARAM_NAMES = ("temperature", "max_tokens", "timeout", "max_retries", "base_url")
 
+PROVIDER_CONFIG_KEYS = ("chat_model", "embedding_model")
+
 #hash saved provider details
 def provider_config_signature():
     try:
         return hashlib.sha256(PROVIDER_CONFIG_PATH.read_bytes()).hexdigest()
     except OSError:
         return None
-#read provider details from provider.json
-def read_provider_configs():
+
+#read full provider config
+def read_provider_config():
     try:
-        configs = json.loads(PROVIDER_CONFIG_PATH.read_text(encoding="utf-8"))
+        data = json.loads(PROVIDER_CONFIG_PATH.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
-        return []
-    if not isinstance(configs, list):
-        return []
-    return [config for config in configs if isinstance(config, dict)]
+        return {key: [] for key in PROVIDER_CONFIG_KEYS}
+    if isinstance(data, list):
+        chat_model = [config for config in data if isinstance(config, dict)]
+        return {"chat_model": chat_model, "embedding_model": []}
+    if not isinstance(data, dict):
+        return {key: [] for key in PROVIDER_CONFIG_KEYS}
+    return {
+        key: (
+            [config for config in data.get(key, []) if isinstance(config, dict)]
+            if isinstance(data.get(key), list)
+            else []
+        )
+        for key in PROVIDER_CONFIG_KEYS
+    }
+
+#read one provider config list
+def read_provider_configs(kind="chat_model"):
+    if kind not in PROVIDER_CONFIG_KEYS:
+        raise ValueError(f"unknown provider config: {kind}")
+    return read_provider_config().get(kind, [])
+
+#write one provider config list
+def write_provider_configs(configs, kind="chat_model"):
+    if kind not in PROVIDER_CONFIG_KEYS:
+        raise ValueError(f"unknown provider config: {kind}")
+    data = read_provider_config()
+    data[kind] = [config for config in configs if isinstance(config, dict)]
+    PROVIDER_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    PROVIDER_CONFIG_PATH.write_text(json.dumps(data), encoding="utf-8")
+    os.chmod(PROVIDER_CONFIG_PATH, 0o600)
+
 #locate a single provider config
 def find_provider_config(configs, provider_name=None):
     if provider_name is None:

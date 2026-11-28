@@ -1,5 +1,4 @@
 
-import json
 import os
 import queue
 import re
@@ -16,12 +15,12 @@ from config.settings import (
     DEFAULT_INGEST_PORT,
     INGEST_HOST,
     PROJECT_ROOT,
-    PROVIDER_CONFIG_PATH,
     build_provider_model,
     find_provider_config,
     find_subagent_config,
     read_provider_configs,
     read_subagent_configs,
+    write_provider_configs,
     write_subagent_configs,
 )
 
@@ -81,11 +80,6 @@ def remember(job_id: str, job: dict) -> None:
     JOBS[job_id] = job
     while len(JOBS) > max_jobs:
         JOBS.pop(next(iter(JOBS)))
-
-def write_provider_configs(configs: list[dict]) -> None:
-    PROVIDER_CONFIG_PATH.parent.mkdir(parents=True, exist_ok=True)
-    PROVIDER_CONFIG_PATH.write_text(json.dumps(configs), encoding="utf-8")
-    os.chmod(PROVIDER_CONFIG_PATH, 0o600)
 
 def sanitize_error(text: str) -> str:
     root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
