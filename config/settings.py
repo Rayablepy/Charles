@@ -5,7 +5,9 @@ import sys
 from dotenv import load_dotenv
 from importlib import import_module
 from pathlib import Path
+from database.db import conn
 
+from sqlite3 import OperationalError
 from langchain.chat_models import init_chat_model
 from langfuse import get_client
 from langfuse.langchain import CallbackHandler
@@ -95,9 +97,13 @@ def provider_config_signature():
         return None
 #read provider details from provider.json
 def read_provider_configs():
+    cursor = conn.cursor()
     try:
-        configs = json.loads(PROVIDER_CONFIG_PATH.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+        cursor.execute("""
+            SELECT * FROM Providers
+        """)
+        configs=cursor.fetchall()
+    except (OSError, OperationalError):
         return []
     if not isinstance(configs, list):
         return []
